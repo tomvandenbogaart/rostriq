@@ -35,7 +35,7 @@ export function SignUpForm() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       })
@@ -43,13 +43,44 @@ export function SignUpForm() {
       if (error) {
         toast.error(error.message)
       } else {
-        toast.success("Account created successfully! Welcome to RostrIQ!")
-        // Clear form on success
-        setEmail('')
-        setPassword('')
-        setConfirmPassword('')
-        // Redirect to dashboard
-        router.push('/dashboard')
+        // Check if we need to confirm email or if user is automatically signed in
+        if (data.user && !data.session) {
+          // Email confirmation required
+          toast.success("Account created! Please check your email to confirm your account.")
+        } else if (data.session) {
+          // User is automatically signed in
+          toast.success("Account created successfully! Welcome to RostrIQ!")
+          // Clear form on success
+          setEmail('')
+          setPassword('')
+          setConfirmPassword('')
+          // Redirect to role selection
+          router.push('/role-selection')
+        } else {
+          // Try to sign in the user manually
+          try {
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            })
+            
+            if (signInError) {
+              toast.error("Account created but couldn't sign you in automatically. Please sign in manually.")
+              router.push('/signin')
+            } else {
+              toast.success("Account created successfully! Welcome to RostrIQ!")
+              // Clear form on success
+              setEmail('')
+              setPassword('')
+              setConfirmPassword('')
+              // Redirect to role selection
+              router.push('/role-selection')
+            }
+          } catch (signInError) {
+            toast.error("Account created but couldn't sign you in automatically. Please sign in manually.")
+            router.push('/signin')
+          }
+        }
       }
     } catch (error) {
       toast.error("An unexpected error occurred")

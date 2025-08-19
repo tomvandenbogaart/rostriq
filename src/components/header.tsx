@@ -115,6 +115,7 @@ export function Header() {
                 >
                   Dashboard
                 </Link>
+
                 <Link 
                   href="/rosters" 
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -255,6 +256,7 @@ export function Header() {
                   >
                     Dashboard
                   </Link>
+
                   <Link
                     href="/rosters"
                     className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
