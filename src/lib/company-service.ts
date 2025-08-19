@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember } from '@/types/database';
+import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, CompanyJoinRequest, CreateCompanyJoinRequest, UpdateCompanyJoinRequest } from '@/types/database';
 
 export class CompanyService {
   // Create a new company
@@ -73,9 +73,37 @@ export class CompanyService {
   // Get companies for a user
   static async getUserCompanies(userId: string): Promise<{ companies: Company[]; error: string | null }> {
     try {
-      // For now, just return empty array to avoid complex queries during setup
-      // This will be enhanced once the basic flow works
-      return { companies: [], error: null };
+      // First get the user profile ID
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError || !userProfile) {
+        return { companies: [], error: 'User profile not found' };
+      }
+
+      // Get companies where the user is a member
+      const { data: companyMembers, error: membersError } = await supabase
+        .from('company_members')
+        .select(`
+          company_id,
+          companies (*)
+        `)
+        .eq('user_id', userProfile.id)
+        .eq('is_active', true);
+
+      if (membersError) {
+        return { companies: [], error: membersError.message };
+      }
+
+      // Extract companies from the joined data and filter active ones
+      const companies = companyMembers
+        .map(member => member.companies as unknown as Company)
+        .filter(company => company && company.is_active);
+
+      return { companies, error: null };
     } catch (error) {
       return { companies: [], error: 'Failed to fetch user companies' };
     }
@@ -167,6 +195,250 @@ export class CompanyService {
       return { members, error: null };
     } catch (error) {
       return { members: [], error: 'Failed to fetch company members' };
+    }
+  }
+
+  // Search companies by name
+  static async searchCompanies(searchTerm: string): Promise<{ companies: Company[]; error: string | null }> {
+    try {
+      const { data: companies, error } = await supabase
+        .from('companies')
+        .select('*')
+        .ilike('name', `%${searchTerm}%`)
+        .eq('is_active', true)
+        .limit(10);
+
+      if (error) {
+        return { companies: [], error: error.message };
+      }
+
+      return { companies, error: null };
+    } catch (error) {
+      return { companies: [], error: 'Failed to search companies' };
+    }
+  }
+
+  // Send a join request to a company
+  static async sendJoinRequest(companyId: string, userId: string, message?: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      // First get the user profile ID
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError || !userProfile) {
+        return { success: false, error: 'User profile not found' };
+      }
+
+      // Check if user is already a member
+      const { data: existingMember } = await supabase
+        .from('company_members')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('user_id', userProfile.id)
+        .eq('is_active', true)
+        .single();
+
+      if (existingMember) {
+        return { success: false, error: 'You are already a member of this company' };
+      }
+
+      // Check if there's already a pending request
+      const { data: existingRequest } = await supabase
+        .from('company_join_requests')
+        .select('id, status')
+        .eq('company_id', companyId)
+        .eq('user_id', userProfile.id)
+        .single();
+
+      if (existingRequest) {
+        if (existingRequest.status === 'pending') {
+          return { success: false, error: 'You already have a pending request for this company' };
+        } else if (existingRequest.status === 'rejected') {
+          return { success: false, error: 'Your previous request was rejected. Please contact the company directly.' };
+        }
+      }
+
+      // Create the join request
+      const { error: requestError } = await supabase
+        .from('company_join_requests')
+        .insert({
+          company_id: companyId,
+          user_id: userProfile.id,
+          message: message || '',
+          status: 'pending'
+        } as CreateCompanyJoinRequest);
+
+      if (requestError) {
+        return { success: false, error: requestError.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      return { success: false, error: 'Failed to send join request' };
+    }
+  }
+
+  // Get join requests for a company (for owners/admins)
+  static async getCompanyJoinRequests(companyId: string): Promise<{ requests: (CompanyJoinRequest & { user_profile: { email: string; first_name?: string; last_name?: string } })[]; error: string | null }> {
+    try {
+      // Get join requests first
+      const { data: requestsData, error: requestsError } = await supabase
+        .from('company_join_requests')
+        .select('*')
+        .eq('company_id', companyId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (requestsError) {
+        return { requests: [], error: requestsError.message };
+      }
+
+      if (!requestsData || requestsData.length === 0) {
+        return { requests: [], error: null };
+      }
+
+      // Then get user profiles - user_id in company_join_requests references user_profiles.id
+      const userProfileIds = requestsData.map(req => req.user_id);
+
+      const { data: userProfiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userProfileIds);
+
+      if (profilesError) {
+        return { requests: [], error: profilesError.message };
+      }
+
+      // Combine the data
+      const requestsWithProfiles = requestsData.map(request => {
+        const userProfile = userProfiles?.find(profile => profile.id === request.user_id);
+
+        if (userProfile && userProfile.email) {
+          return {
+            ...request,
+            user_profile: {
+              email: userProfile.email,
+              first_name: userProfile.first_name || undefined,
+              last_name: userProfile.last_name || undefined
+            }
+          };
+        } else {
+          return {
+            ...request,
+            user_profile: { email: 'No email available', first_name: undefined, last_name: undefined }
+          };
+        }
+      });
+
+      return { requests: requestsWithProfiles, error: null };
+    } catch (error) {
+      console.error('Error in getCompanyJoinRequests:', error);
+      return { requests: [], error: 'Failed to fetch join requests' };
+    }
+  }
+
+  // Approve a join request
+  static async approveJoinRequest(requestId: string, reviewerId: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      // Get the request details
+      const { data: request, error: requestError } = await supabase
+        .from('company_join_requests')
+        .select('company_id, user_id')
+        .eq('id', requestId)
+        .eq('status', 'pending')
+        .single();
+
+      if (requestError || !request) {
+        return { success: false, error: 'Join request not found or already processed' };
+      }
+
+      // Get the reviewer profile ID
+      const { data: reviewerProfile, error: reviewerError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', reviewerId)
+        .single();
+
+      if (reviewerError || !reviewerProfile) {
+        return { success: false, error: 'Reviewer profile not found' };
+      }
+
+      // Update the request status
+      const { error: updateError } = await supabase
+        .from('company_join_requests')
+        .update({
+          status: 'approved',
+          reviewed_by: reviewerProfile.id,
+          reviewed_at: new Date().toISOString()
+        } as UpdateCompanyJoinRequest)
+        .eq('id', requestId);
+
+      if (updateError) {
+        return { success: false, error: updateError.message };
+      }
+
+      // Add the user to the company as a member
+      const { error: memberError } = await supabase
+        .from('company_members')
+        .insert({
+          company_id: request.company_id,
+          user_id: request.user_id,
+          role: 'member',
+          permissions: { can_manage_company: false, can_manage_members: false },
+          is_active: true
+        } as CreateCompanyMember);
+
+      if (memberError) {
+        // Rollback the request status update if member creation fails
+        await supabase
+          .from('company_join_requests')
+          .update({ status: 'pending', reviewed_by: null, reviewed_at: null })
+          .eq('id', requestId);
+        
+        return { success: false, error: memberError.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      return { success: false, error: 'Failed to approve join request' };
+    }
+  }
+
+  // Reject a join request
+  static async rejectJoinRequest(requestId: string, reviewerId: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      // Get the reviewer profile ID
+      const { data: reviewerProfile, error: reviewerError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', reviewerId)
+        .single();
+
+      if (reviewerError || !reviewerProfile) {
+        return { success: false, error: 'Reviewer profile not found' };
+      }
+
+      // Update the request status
+      const { error: updateError } = await supabase
+        .from('company_join_requests')
+        .update({
+          status: 'rejected',
+          reviewed_by: reviewerProfile.id,
+          reviewed_at: new Date().toISOString()
+        } as UpdateCompanyJoinRequest)
+        .eq('id', requestId)
+        .eq('status', 'pending');
+
+      if (updateError) {
+        return { success: false, error: updateError.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      return { success: false, error: 'Failed to reject join request' };
     }
   }
 }

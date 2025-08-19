@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { DatabaseService } from '@/lib/database'
@@ -8,6 +8,7 @@ import { CompanyService } from '@/lib/company-service'
 import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { CompanyJoinRequests } from '@/components/company-join-requests'
 import { Company } from '@/types/database'
 
 interface User {
@@ -16,7 +17,7 @@ interface User {
   created_at: string
 }
 
-export default function Dashboard() {
+function DashboardContent() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -112,7 +113,7 @@ export default function Dashboard() {
     <>
       <Header />
       <main className="min-h-screen py-8 px-4">
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-7xl mx-auto space-y-8">
           {/* Welcome Section */}
           <div className="text-center space-y-4">
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
@@ -132,99 +133,107 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Company Profile Card for Owners */}
+          {/* Company Profile and Join Requests Row for Owners */}
           {userRole === 'owner' && userCompany && (
-            <div className="col-span-full">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Company Profile</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => router.push('/company-profile')}
-                    >
-                      Edit Profile
-                    </Button>
-                  </CardTitle>
-                  <CardDescription>Your company information</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col md:flex-row gap-6">
-                    {/* Company Logo - Left Side */}
-                    {userCompany.logo_url && (
-                      <div className="flex-shrink-0">
-                        <div className="w-24 h-24 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
-                          <img 
-                            src={userCompany.logo_url} 
-                            alt={`${userCompany.name} logo`}
-                            className="w-full h-full object-contain p-2"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Company Profile Card - Takes 2 columns */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>Company Profile</span>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => router.push('/company-profile')}
+                      >
+                        Edit Profile
+                      </Button>
+                    </CardTitle>
+                    <CardDescription>Your company information</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col md:flex-row gap-6">
+                      {/* Company Logo - Left Side */}
+                      {userCompany.logo_url && (
+                        <div className="flex-shrink-0">
+                          <div className="w-24 h-24 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={userCompany.logo_url} 
+                              alt={`${userCompany.name} logo`}
+                              className="w-full h-full object-contain p-2"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Company Information - Right Side */}
+                      <div className="flex-1 space-y-4">
+                        {/* Primary Info Row */}
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-foreground mb-1">Company Name</h4>
+                            <p className="text-muted-foreground text-lg font-semibold">{userCompany.name}</p>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-foreground mb-1">Industry</h4>
+                            <p className="text-muted-foreground">{userCompany.industry || 'Not specified'}</p>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-foreground mb-1">Size</h4>
+                            <p className="text-muted-foreground">{userCompany.size || 'Not specified'}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Description */}
+                        {userCompany.description && (
+                          <div>
+                            <h4 className="font-medium text-foreground mb-1">Description</h4>
+                            <p className="text-muted-foreground">{userCompany.description}</p>
+                          </div>
+                        )}
+                        
+                        {/* Contact & Website Row */}
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          {userCompany.website && (
+                            <div className="flex-1">
+                              <h4 className="font-medium text-foreground mb-1">Website</h4>
+                              <a 
+                                href={userCompany.website} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:text-primary/80 underline text-sm"
+                              >
+                                {userCompany.website}
+                              </a>
+                            </div>
+                          )}
+                          {userCompany.email && (
+                            <div className="flex-1">
+                              <h4 className="font-medium text-foreground mb-1">Contact Email</h4>
+                              <a 
+                                href={`mailto:${userCompany.email}`}
+                                className="text-primary hover:text-primary/80 underline text-sm"
+                              >
+                                {userCompany.email}
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-                    
-                                         {/* Company Information - Right Side */}
-                     <div className="flex-1 space-y-4">
-                       {/* Primary Info Row */}
-                       <div className="flex flex-col sm:flex-row gap-4">
-                         <div className="flex-1">
-                           <h4 className="font-medium text-foreground mb-1">Company Name</h4>
-                           <p className="text-muted-foreground text-lg font-semibold">{userCompany.name}</p>
-                         </div>
-                         <div className="flex-1">
-                           <h4 className="font-medium text-foreground mb-1">Industry</h4>
-                           <p className="text-muted-foreground">{userCompany.industry || 'Not specified'}</p>
-                         </div>
-                         <div className="flex-1">
-                           <h4 className="font-medium text-foreground mb-1">Size</h4>
-                           <p className="text-muted-foreground">{userCompany.size || 'Not specified'}</p>
-                         </div>
-                       </div>
-                       
-                       {/* Description */}
-                       {userCompany.description && (
-                         <div>
-                           <h4 className="font-medium text-foreground mb-1">Description</h4>
-                           <p className="text-muted-foreground">{userCompany.description}</p>
-                         </div>
-                       )}
-                       
-                       {/* Contact & Website Row */}
-                       <div className="flex flex-col sm:flex-row gap-4">
-                         {userCompany.website && (
-                           <div className="flex-1">
-                             <h4 className="font-medium text-foreground mb-1">Website</h4>
-                             <a 
-                               href={userCompany.website} 
-                               target="_blank" 
-                               rel="noopener noreferrer"
-                               className="text-primary hover:text-primary/80 underline text-sm"
-                             >
-                               {userCompany.website}
-                             </a>
-                           </div>
-                         )}
-                         {userCompany.email && (
-                           <div className="flex-1">
-                             <h4 className="font-medium text-foreground mb-1">Contact Email</h4>
-                             <a 
-                               href={`mailto:${userCompany.email}`}
-                               className="text-primary hover:text-primary/80 underline text-sm"
-                             >
-                               {userCompany.email}
-                             </a>
-                           </div>
-                         )}
-                       </div>
-                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Join Requests Card - Takes 1 column */}
+              <div className="lg:col-span-1">
+                <CompanyJoinRequests companyId={userCompany.id} />
+              </div>
             </div>
           )}
 
@@ -407,5 +416,23 @@ export default function Dashboard() {
         </div>
       </main>
     </>
+  )
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={
+      <>
+        <Header />
+        <main className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </main>
+      </>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }
