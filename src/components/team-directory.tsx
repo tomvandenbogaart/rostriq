@@ -350,7 +350,7 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
           <CardDescription>No team members found</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Your company doesn't have any team members yet.</p>
+          <p className="text-muted-foreground">Your company doesn&apos;t have any team members yet.</p>
         </CardContent>
       </Card>
     );

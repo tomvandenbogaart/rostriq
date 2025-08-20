@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 
 interface CompanyJoinRequestsProps {
   companyId: string
+  onRequestProcessed?: () => void
 }
 
 type JoinRequestWithUser = CompanyJoinRequest & {
@@ -20,7 +21,7 @@ type JoinRequestWithUser = CompanyJoinRequest & {
   }
 }
 
-export function CompanyJoinRequests({ companyId }: CompanyJoinRequestsProps) {
+export function CompanyJoinRequests({ companyId, onRequestProcessed }: CompanyJoinRequestsProps) {
   const [requests, setRequests] = useState<JoinRequestWithUser[]>([])
   const [loading, setLoading] = useState(true)
   const [processingRequest, setProcessingRequest] = useState<string | null>(null)
@@ -64,6 +65,10 @@ export function CompanyJoinRequests({ companyId }: CompanyJoinRequestsProps) {
         toast.success('Join request approved successfully!')
         // Remove the approved request from the list
         setRequests(prev => prev.filter(req => req.id !== requestId))
+        // Notify parent component to refresh team members
+        if (onRequestProcessed) {
+          onRequestProcessed()
+        }
       } else {
         toast.error(error || 'Failed to approve join request')
       }
@@ -91,6 +96,10 @@ export function CompanyJoinRequests({ companyId }: CompanyJoinRequestsProps) {
         toast.success('Join request rejected successfully!')
         // Remove the rejected request from the list
         setRequests(prev => prev.filter(req => req.id !== requestId))
+        // Notify parent component to refresh team members (for consistency)
+        if (onRequestProcessed) {
+          onRequestProcessed()
+        }
       } else {
         toast.error(error || 'Failed to reject join request')
       }

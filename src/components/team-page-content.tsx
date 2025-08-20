@@ -61,7 +61,10 @@ export function TeamPageContent({ company, currentUserId }: TeamPageContentProps
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CompanyJoinRequests companyId={company.id} />
+              <CompanyJoinRequests 
+                companyId={company.id} 
+                onRequestProcessed={fetchTeamMembers}
+              />
             </CardContent>
           </Card>
         </div>

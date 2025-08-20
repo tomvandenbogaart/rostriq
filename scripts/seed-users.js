@@ -1,4 +1,5 @@
-// Seed script to create test users using Supabase client
+// Seed script to create test users, company, and company functions using Supabase client
+// This script is self-contained and creates everything needed for testing
 // This uses the proper Supabase auth flow
 
 import { createClient } from '@supabase/supabase-js'
@@ -136,6 +137,41 @@ async function seedUsers() {
     console.log('Waiting for database trigger to create user profiles...')
     await new Promise(resolve => setTimeout(resolve, 2000))
 
+    // Update all user profiles with their names using admin client
+    console.log('Updating user profiles with names...')
+    for (const userData of additionalUsers) {
+      try {
+        // Get the user profile by email
+        const { data: profile, error: profileError } = await supabaseAdmin
+          .from('user_profiles')
+          .select('id, user_id')
+          .eq('email', userData.email)
+          .single()
+
+        if (profileError) {
+          console.log(`ℹ️  Profile not found for ${userData.firstName}:`, profileError.message)
+          continue
+        }
+
+        // Update the profile with first and last name
+        const { error: updateError } = await supabaseAdmin
+          .from('user_profiles')
+          .update({
+            first_name: userData.firstName,
+            last_name: userData.lastName
+          })
+          .eq('id', profile.id)
+
+        if (updateError) {
+          console.error(`Error updating profile for ${userData.firstName}:`, updateError)
+        } else {
+          console.log(`✅ Updated profile for ${userData.firstName} ${userData.lastName}`)
+        }
+      } catch (error) {
+        console.log(`ℹ️  Profile update skipped for ${userData.firstName}:`, error.message)
+      }
+    }
+
     // Sign in as Tom to set up company and profile
     console.log('Signing in as Tom to set up company...')
     const { data: tomSignIn, error: signInError } = await supabase.auth.signInWithPassword({
@@ -168,19 +204,25 @@ async function seedUsers() {
 
     console.log('✅ Updated Tom profile to owner role')
 
-    // Get the existing company (created by seed.sql)
+    // Create the company
+    console.log('Creating company...')
     const { data: company, error: companyError } = await supabase
       .from('companies')
-      .select('*')
-      .eq('name', 'Softomic')
+      .insert({
+        name: 'Softomic',
+        description: 'A software company focused on innovative solutions',
+        industry: 'Technology',
+        email: 'tom@softomic.nl'
+      })
+      .select()
       .single()
 
     if (companyError) {
-      console.error('Error getting company:', companyError)
+      console.error('Error creating company:', companyError)
       return
     }
 
-    console.log('✅ Found existing company:', company.name)
+    console.log('✅ Created company:', company.name)
 
     // Get Tom's profile ID
     const { data: tomProfile, error: profileError } = await supabase
@@ -263,14 +305,147 @@ async function seedUsers() {
 
     console.log('\n🎉 Seed completed successfully!')
     console.log('You can now sign in with:')
-    console.log('- tom@softomic.nl (password: password123) - Company Owner')
-    console.log('- bogatom98@gmail.com (password: password123) - User with join request')
-    console.log('- sarah.johnson@email.com (password: password123) - User with join request')
-    console.log('- mike.chen@email.com (password: password123) - User with join request')
-    console.log('- emma.wilson@email.com (password: password123) - User with join request')
-    console.log('- alex.rodriguez@email.com (password: password123) - User with join request')
-    console.log('- lisa.thompson@email.com (password: password123) - User with join request')
+    console.log('- tom@softomic.nl (password: password123) - Tom van den Bogaart - Company Owner')
+    console.log('- bogatom98@gmail.com (password: password123) - Boga Tom - User with join request')
+    console.log('- sarah.johnson@email.com (password: password123) - Sarah Johnson - User with join request')
+    console.log('- mike.chen@email.com (password: password123) - Mike Chen - User with join request')
+    console.log('- emma.wilson@email.com (password: password123) - Emma Wilson - User with join request')
+    console.log('- alex.rodriguez@email.com (password: password123) - Alex Rodriguez - User with join request')
+    console.log('- lisa.thompson@email.com (password: password123) - Lisa Thompson - User with join request')
     console.log('\nJoin request statuses: 4 pending, 1 approved, 1 rejected')
+
+    // Create company functions
+    console.log('\nCreating company functions...')
+    
+    const companyFunctions = [
+      {
+        name: 'Software Development',
+        description: 'Core software development and programming tasks',
+        color: '#3b82f6' // Blue
+      },
+      {
+        name: 'UI/UX Design',
+        description: 'User interface and user experience design',
+        color: '#8b5cf6' // Purple
+      },
+      {
+        name: 'Project Management',
+        description: 'Project planning, coordination, and delivery',
+        color: '#10b981' // Green
+      },
+      {
+        name: 'Quality Assurance',
+        description: 'Testing, quality control, and bug reporting',
+        color: '#f59e0b' // Amber
+      },
+      {
+        name: 'DevOps',
+        description: 'Infrastructure, deployment, and operations',
+        color: '#ef4444' // Red
+      },
+      {
+        name: 'Data Analysis',
+        description: 'Data processing, analysis, and reporting',
+        color: '#06b6d4' // Cyan
+      }
+    ]
+
+    const createdFunctions = []
+
+    for (const func of companyFunctions) {
+      const { data: functionData, error: functionError } = await supabaseAdmin
+        .from('company_functions')
+        .insert({
+          company_id: company.id,
+          name: func.name,
+          description: func.description,
+          color: func.color,
+          created_by: tomProfile.id
+        })
+        .select()
+        .single()
+
+      if (functionError) {
+        console.error(`Error creating function ${func.name}:`, functionError)
+      } else {
+        console.log(`✅ Created function: ${func.name}`)
+        createdFunctions.push(functionData)
+      }
+    }
+
+    // Assign functions to users (only to approved members)
+    console.log('\nAssigning functions to users...')
+    
+    // Get approved join requests
+    const { data: approvedRequests, error: approvedError } = await supabaseAdmin
+      .from('company_join_requests')
+      .select('user_id, status')
+      .eq('company_id', company.id)
+      .eq('status', 'approved')
+
+    if (approvedError) {
+      console.error('Error getting approved requests:', approvedError)
+    } else if (approvedRequests && approvedRequests.length > 0) {
+      // Assign primary functions to approved users
+      const functionAssignments = [
+        { functionName: 'Software Development', isPrimary: true },
+        { functionName: 'UI/UX Design', isPrimary: true },
+        { functionName: 'Project Management', isPrimary: true },
+        { functionName: 'Quality Assurance', isPrimary: true },
+        { functionName: 'DevOps', isPrimary: true },
+        { functionName: 'Data Analysis', isPrimary: true }
+      ]
+
+      for (let i = 0; i < approvedRequests.length && i < functionAssignments.length; i++) {
+        const request = approvedRequests[i]
+        const assignment = functionAssignments[i]
+        
+        // Find the function by name
+        const functionToAssign = createdFunctions.find(f => f.name === assignment.functionName)
+        
+        if (functionToAssign) {
+          const { error: assignmentError } = await supabaseAdmin
+            .from('company_function_assignments')
+            .insert({
+              company_id: company.id,
+              user_id: request.user_id,
+              function_id: functionToAssign.id,
+              is_primary: assignment.isPrimary,
+              assigned_by: tomProfile.id
+            })
+
+          if (assignmentError) {
+            console.error(`Error assigning function ${assignment.functionName} to user:`, assignmentError)
+          } else {
+            console.log(`✅ Assigned ${assignment.functionName} to user`)
+          }
+        }
+      }
+    }
+
+    // Also assign Tom (company owner) to Software Development as primary function
+    const softwareDevFunction = createdFunctions.find(f => f.name === 'Software Development')
+    if (softwareDevFunction) {
+      const { error: tomAssignmentError } = await supabaseAdmin
+        .from('company_function_assignments')
+        .insert({
+          company_id: company.id,
+          user_id: tomProfile.id,
+          function_id: softwareDevFunction.id,
+          is_primary: true,
+          assigned_by: tomProfile.id
+        })
+
+      if (tomAssignmentError) {
+        console.error('Error assigning function to Tom:', tomAssignmentError)
+      } else {
+        console.log('✅ Assigned Software Development to Tom (company owner)')
+      }
+    }
+
+    console.log('\n🎉 Company functions seeding completed!')
+    console.log(`Created ${createdFunctions.length} company functions`)
+    console.log('Functions available: Software Development, UI/UX Design, Project Management, Quality Assurance, DevOps, Data Analysis')
 
   } catch (error) {
     console.error('Unexpected error:', error)

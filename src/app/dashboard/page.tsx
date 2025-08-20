@@ -130,7 +130,7 @@ function DashboardContent() {
           {/* Today's Schedule Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Today&apos;s Schedule</h1>
+              <h1 className="text-4xl font-bold text-foreground">Today&apos;s Schedule</h1>
               <p className="text-muted-foreground">View and manage your team&apos;s daily schedule</p>
             </div>
             <div className="flex gap-3">

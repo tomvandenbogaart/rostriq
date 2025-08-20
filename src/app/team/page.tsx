@@ -94,9 +94,9 @@ function TeamPageMain() {
       <Header />
       <main className="min-h-screen py-8">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-foreground">Team Management</h1>
-            <p className="text-muted-foreground">Manage your team members and join requests</p>
+          <div>
+            <h1 className="text-4xl font-bold text-foreground">Team Management</h1>
+            <p className="text-muted-foreground">View and manage your team members, roles, and join requests</p>
           </div>
           
           <TeamPageContent company={userCompany} currentUserId={userProfile.id} />
