@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { supabase } from '@/lib/supabase'
+import { ChevronDown, Settings, User, Building2, LogOut } from 'lucide-react'
 
 interface User {
   id: string
@@ -14,6 +15,7 @@ interface User {
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -58,11 +60,24 @@ export function Header() {
     try {
       await supabase.auth.signOut()
       setUser(null)
+      setIsUserDropdownOpen(false)
       router.push('/')
     } catch (error) {
       console.error('Error signing out:', error)
     }
   }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isUserDropdownOpen && !(event.target as Element).closest('.user-dropdown')) {
+        setIsUserDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isUserDropdownOpen])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -91,12 +106,6 @@ export function Header() {
                   href="#pricing" 
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Pricing
-                </a>
-                <a 
-                  href="#about" 
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
                   About
                 </a>
                 <a 
@@ -115,7 +124,6 @@ export function Header() {
                 >
                   Dashboard
                 </Link>
-
                 <Link 
                   href="/rosters" 
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -158,20 +166,48 @@ export function Header() {
                       </Link>
                     </>
                   ) : (
-                    <>
-                      <div className="flex items-center space-x-3">
+                    <div className="relative user-dropdown">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                        className="flex items-center space-x-2"
+                      >
                         <span className="text-sm text-muted-foreground">
                           {user.email}
                         </span>
-                        <Button 
-                          onClick={handleSignOut} 
-                          variant="ghost" 
-                          size="sm"
-                        >
-                          Sign Out
-                        </Button>
-                      </div>
-                    </>
+                        <ChevronDown className={`h-4 w-4 transition-transform ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                      </Button>
+                      
+                      {isUserDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-56 bg-background border rounded-md shadow-lg py-1 z-50">
+                          <Link
+                            href="/account-settings"
+                            className="flex items-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                            onClick={() => setIsUserDropdownOpen(false)}
+                          >
+                            <User className="h-4 w-4 mr-3" />
+                            Account Settings
+                          </Link>
+                          <Link
+                            href="/company-settings"
+                            className="flex items-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                            onClick={() => setIsUserDropdownOpen(false)}
+                          >
+                            <Building2 className="h-4 w-4 mr-3" />
+                            Company Settings
+                          </Link>
+                          <div className="border-t my-1" />
+                          <button
+                            onClick={handleSignOut}
+                            className="flex items-center w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          >
+                            <LogOut className="h-4 w-4 mr-3" />
+                            Sign Out
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </>
               )}
@@ -230,13 +266,6 @@ export function Header() {
                     className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Pricing
-                  </a>
-                  <a
-                    href="#about"
-                    className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
                     About
                   </a>
                   <a
@@ -256,7 +285,6 @@ export function Header() {
                   >
                     Dashboard
                   </Link>
-
                   <Link
                     href="/rosters"
                     className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
@@ -277,6 +305,27 @@ export function Header() {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Reports
+                  </Link>
+                  <div className="border-t my-1" />
+                  <Link
+                    href="/account-settings"
+                    className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 mr-3" />
+                      Account Settings
+                    </div>
+                  </Link>
+                  <Link
+                    href="/company-settings"
+                    className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <Building2 className="h-4 w-4 mr-3" />
+                      Company Settings
+                    </div>
                   </Link>
                 </>
               )}

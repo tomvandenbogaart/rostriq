@@ -76,7 +76,7 @@ export function CompanyProfileForm({ company, userId, mode }: CompanyProfileForm
         if (error) {
           setError(error);
         } else if (newCompany) {
-          router.push(`/dashboard?company=${newCompany.id}`);
+          router.push('/dashboard');
         }
       } else if (company && mode === 'edit') {
         const { company: updatedCompany, error } = await CompanyService.updateCompany(
@@ -87,7 +87,7 @@ export function CompanyProfileForm({ company, userId, mode }: CompanyProfileForm
         if (error) {
           setError(error);
         } else if (updatedCompany) {
-          router.push(`/dashboard?company=${updatedCompany.id}`);
+          router.push('/company-settings');
         }
       }
     } catch (err) {

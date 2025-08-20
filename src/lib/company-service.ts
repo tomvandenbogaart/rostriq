@@ -441,4 +441,69 @@ export class CompanyService {
       return { success: false, error: 'Failed to reject join request' };
     }
   }
+
+  // Get company members with user profile information
+  static async getCompanyTeamMembers(companyId: string): Promise<{ members: (CompanyMember & { user_profile: { email: string; first_name?: string; last_name?: string; avatar_url?: string } })[]; error: string | null }> {
+    try {
+      // Get company members first
+      const { data: membersData, error: membersError } = await supabase
+        .from('company_members')
+        .select('*')
+        .eq('company_id', companyId)
+        .eq('is_active', true)
+        .order('joined_at', { ascending: true });
+
+      if (membersError) {
+        return { members: [], error: membersError.message };
+      }
+
+      if (!membersData || membersData.length === 0) {
+        return { members: [], error: null };
+      }
+
+      // Get user profiles for all members
+      const userProfileIds = membersData.map(member => member.user_id);
+
+      const { data: userProfiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('id, email, first_name, last_name, avatar_url')
+        .in('id', userProfileIds);
+
+      if (profilesError) {
+        return { members: [], error: profilesError.message };
+      }
+
+      // Combine the data
+      const membersWithProfiles = membersData.map(member => {
+        const userProfile = userProfiles?.find(profile => profile.id === member.user_id);
+
+        if (userProfile) {
+          return {
+            ...member,
+            user_profile: {
+              email: userProfile.email,
+              first_name: userProfile.first_name || undefined,
+              last_name: userProfile.last_name || undefined,
+              avatar_url: userProfile.avatar_url || undefined
+            }
+          };
+        } else {
+          return {
+            ...member,
+            user_profile: { 
+              email: 'No email available', 
+              first_name: undefined, 
+              last_name: undefined,
+              avatar_url: undefined
+            }
+          };
+        }
+      });
+
+      return { members: membersWithProfiles, error: null };
+    } catch (error) {
+      console.error('Error in getCompanyTeamMembers:', error);
+      return { members: [], error: 'Failed to fetch team members' };
+    }
+  }
 }

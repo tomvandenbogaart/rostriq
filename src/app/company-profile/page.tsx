@@ -67,24 +67,27 @@ export default async function CompanyProfilePage() {
             Company Profile
           </h1>
           <p className="text-lg text-gray-600">
-            Manage your company information and settings
+            View your company information and profile details
           </p>
         </div>
         
-        {isOwner ? (
-          <CompanyProfileForm 
-            company={company}
-            userId={user.id}
-            mode="edit"
-          />
-        ) : (
-          <div className="text-center">
-            <p className="text-gray-600 mb-4">
-              You don&apos;t have permission to edit this company profile.
-            </p>
-            <CompanyProfileView company={company} />
-          </div>
-        )}
+        <div className="text-center mb-8">
+          <p className="text-gray-600 mb-4">
+            This page shows your company profile information.
+          </p>
+          {isOwner && (
+            <div className="mb-6">
+              <a 
+                href="/company-settings"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Edit Company Settings
+              </a>
+            </div>
+          )}
+        </div>
+        
+        <CompanyProfileView company={company} />
       </div>
     </div>
   );
