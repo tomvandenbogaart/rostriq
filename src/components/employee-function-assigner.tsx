@@ -162,7 +162,7 @@ export function EmployeeFunctionAssigner({ companyId, currentUserId }: EmployeeF
         <CardHeader>
           <CardTitle>Quick Function Assignment</CardTitle>
           <CardDescription>
-            Assign functions to employees who don't have any yet
+            Assign functions to employees who don&apos;t have any yet
           </CardDescription>
         </CardHeader>
         <CardContent>

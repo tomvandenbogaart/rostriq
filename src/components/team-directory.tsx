@@ -8,7 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { CompanyFunctionsService } from '@/lib/company-functions-service';
 import { CompanyService } from '@/lib/company-service';
-import type { CompanyFunctionView, EmployeeFunctionView, CreateCompanyFunctionAssignment } from '@/types/database';
+import { WorkingScheduleEditor } from '@/components/working-schedule-editor';
+import type { CompanyFunctionView, EmployeeFunctionView, CreateCompanyFunctionAssignment, DailySchedule } from '@/types/database';
 
 interface TeamMemberWithProfile extends CompanyMember {
   user_profile: {
@@ -17,6 +18,13 @@ interface TeamMemberWithProfile extends CompanyMember {
     last_name?: string;
     avatar_url?: string;
   };
+  working_days?: string[];
+  working_hours_start?: string;
+  working_hours_end?: string;
+  is_part_time?: boolean;
+  working_schedule_notes?: string;
+  daily_schedule?: DailySchedule;
+  weekly_hours?: number;
 }
 
 interface TeamDirectoryProps {
@@ -34,6 +42,8 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
   const [employeeFunctions, setEmployeeFunctions] = useState<EmployeeFunctionView[]>([]);
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [editingScheduleFor, setEditingScheduleFor] = useState<string | null>(null);
+  const [isUpdatingSchedule, setIsUpdatingSchedule] = useState(false);
   const currentOperationRef = useRef<string | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -118,6 +128,37 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
     } catch (error) {
       console.error('Error removing team member:', error);
       alert('Failed to remove team member. Please try again.');
+    }
+  };
+
+  const handleUpdateWorkingSchedule = async (userId: string, schedule: {
+    daily_schedule: DailySchedule;
+    is_part_time: boolean;
+    working_schedule_notes?: string;
+  }) => {
+    try {
+      setIsUpdatingSchedule(true);
+      const result = await CompanyService.updateTeamMemberSchedule(
+        companyId, 
+        userId, 
+        currentUserId, 
+        schedule
+      );
+      
+      if (result.success) {
+        setEditingScheduleFor(null);
+        // Call the callback to refresh team members list
+        if (onTeamMembersChange) {
+          onTeamMembersChange();
+        }
+      } else {
+        alert(`Failed to update working schedule: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error updating working schedule:', error);
+      alert('Failed to update working schedule. Please try again.');
+    } finally {
+      setIsUpdatingSchedule(false);
     }
   };
 
@@ -293,7 +334,7 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
     return '?';
   };
 
-  const getDisplayName = (email: string, firstName?: string, lastName?: string) => {
+  const getDisplayName = (email: string | undefined, firstName?: string, lastName?: string) => {
     if (firstName && lastName) {
       return `${firstName} ${lastName}`;
     } else if (firstName) {
@@ -301,7 +342,74 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
     } else if (lastName) {
       return lastName;
     }
-    return email.split('@')[0];
+    return email ? email.split('@')[0] : 'Unknown User';
+  };
+
+  const formatWorkingSchedule = (member: TeamMemberWithProfile) => {
+    // Check if member has daily_schedule (new format)
+    if (member.daily_schedule) {
+      const dayLabels: Record<string, string> = {
+        monday: 'Mon',
+        tuesday: 'Tue', 
+        wednesday: 'Wed',
+        thursday: 'Thu',
+        friday: 'Fri',
+        saturday: 'Sat',
+        sunday: 'Sun'
+      };
+
+      const activeDays = Object.entries(member.daily_schedule)
+        .filter(([, schedule]) => schedule?.enabled)
+        .map(([day]) => dayLabels[day] || day);
+
+      if (activeDays.length === 0) {
+        return <span className="text-sm text-muted-foreground">Not set</span>;
+      }
+
+      return (
+        <div className="space-y-1">
+          <div className="text-sm font-medium">{activeDays.join(', ')}</div>
+          {member.weekly_hours && (
+            <div className="text-xs text-muted-foreground">
+              {member.weekly_hours.toFixed(1)}h/week
+            </div>
+          )}
+          {member.is_part_time && (
+            <Badge variant="secondary" className="text-xs">Part-time</Badge>
+          )}
+        </div>
+      );
+    }
+
+    // Fallback to old format for backward compatibility
+    if (!member.working_days || member.working_days.length === 0) {
+      return <span className="text-sm text-muted-foreground">Not set</span>;
+    }
+
+    const dayLabels: Record<string, string> = {
+      monday: 'Mon',
+      tuesday: 'Tue', 
+      wednesday: 'Wed',
+      thursday: 'Thu',
+      friday: 'Fri',
+      saturday: 'Sat',
+      sunday: 'Sun'
+    };
+
+    const days = member.working_days.map(day => dayLabels[day] || day);
+    const timeRange = member.working_hours_start && member.working_hours_end 
+      ? `${member.working_hours_start.substring(0, 5)} - ${member.working_hours_end.substring(0, 5)}`
+      : '';
+
+    return (
+      <div className="space-y-1">
+        <div className="text-sm font-medium">{days.join(', ')}</div>
+        {timeRange && <div className="text-xs text-muted-foreground">{timeRange}</div>}
+        {member.is_part_time && (
+          <Badge variant="secondary" className="text-xs">Part-time</Badge>
+        )}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -372,6 +480,7 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                 <th className="text-left py-3 px-4 font-medium">Member</th>
                 <th className="text-left py-3 px-4 font-medium">Role</th>
                 <th className="text-left py-3 px-4 font-medium">Functions</th>
+                <th className="text-left py-3 px-4 font-medium">Working Schedule</th>
                 <th className="text-left py-3 px-4 font-medium">Joined</th>
                 {!viewOnly && (
                   <th className="text-left py-3 px-4 font-medium">Actions</th>
@@ -469,6 +578,23 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                     </td>
                     
                     <td className="py-4 px-4">
+                      <div className="space-y-2">
+                        {formatWorkingSchedule(member)}
+                        {!viewOnly && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingScheduleFor(member.user_id)}
+                            className="text-xs"
+                          >
+                            {(member.daily_schedule && Object.values(member.daily_schedule).some(day => day?.enabled)) || 
+                             (member.working_days && member.working_days.length > 0) ? 'Edit' : 'Set'} Schedule
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                    
+                    <td className="py-4 px-4">
                       <span className="text-sm text-muted-foreground">
                         {new Date(member.joined_at).toLocaleDateString('en-US', {
                           year: 'numeric',
@@ -513,6 +639,30 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
           </div>
         )}
       </CardContent>
+      
+              {/* Working Schedule Editor Modal */}
+        {editingScheduleFor && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-background rounded-lg shadow-lg max-w-4xl w-full">
+              <WorkingScheduleEditor
+                schedule={{
+                  daily_schedule: members.find(m => m.user_id === editingScheduleFor)?.daily_schedule || {
+                    monday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                    tuesday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                    wednesday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                    thursday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                    friday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' }
+                  },
+                  is_part_time: members.find(m => m.user_id === editingScheduleFor)?.is_part_time || false,
+                  working_schedule_notes: members.find(m => m.user_id === editingScheduleFor)?.working_schedule_notes || ''
+                }}
+                onSave={(schedule) => handleUpdateWorkingSchedule(editingScheduleFor, schedule)}
+                onCancel={() => setEditingScheduleFor(null)}
+                isLoading={isUpdatingSchedule}
+              />
+            </div>
+          </div>
+        )}
     </Card>
   );
 }

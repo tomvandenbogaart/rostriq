@@ -35,6 +35,23 @@ export interface Company {
   updated_at: string;
 }
 
+// Daily schedule structure for flexible per-day working hours
+export interface DailyScheduleEntry {
+  enabled: boolean;
+  start_time?: string; // HH:MM:SS format
+  end_time?: string;   // HH:MM:SS format
+}
+
+export interface DailySchedule {
+  monday?: DailyScheduleEntry;
+  tuesday?: DailyScheduleEntry;
+  wednesday?: DailyScheduleEntry;
+  thursday?: DailyScheduleEntry;
+  friday?: DailyScheduleEntry;
+  saturday?: DailyScheduleEntry;
+  sunday?: DailyScheduleEntry;
+}
+
 export interface CompanyMember {
   id: string;
   company_id: string;
@@ -43,6 +60,13 @@ export interface CompanyMember {
   permissions: Record<string, unknown>;
   joined_at: string;
   is_active: boolean;
+  working_days?: string[];
+  working_hours_start?: string;
+  working_hours_end?: string;
+  is_part_time?: boolean;
+  working_schedule_notes?: string;
+  daily_schedule?: DailySchedule;
+  weekly_hours?: number;
 }
 
 export interface CompanyJoinRequest {
@@ -126,6 +150,13 @@ export interface UserCompanyView {
   company_name?: string;
   company_role?: string;
   permissions?: Record<string, unknown>;
+  working_days?: string[];
+  working_hours_start?: string;
+  working_hours_end?: string;
+  is_part_time?: boolean;
+  working_schedule_notes?: string;
+  daily_schedule?: DailySchedule;
+  weekly_hours?: number;
 }
 
 // Database table names for Supabase queries

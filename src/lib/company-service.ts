@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, CompanyJoinRequest, CreateCompanyJoinRequest, UpdateCompanyJoinRequest } from '@/types/database';
+import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, CompanyJoinRequest, CreateCompanyJoinRequest, UpdateCompanyJoinRequest, DailySchedule } from '@/types/database';
 
 export class CompanyService {
   // Create a new company
@@ -71,13 +71,13 @@ export class CompanyService {
   }
 
   // Get companies for a user
-  static async getUserCompanies(userId: string): Promise<{ companies: Company[]; error: string | null }> {
+  static async getUserCompanies(authUserId: string): Promise<{ companies: Company[]; error: string | null }> {
     try {
       // First get the user profile ID
       const { data: userProfile, error: profileError } = await supabase
         .from('user_profiles')
         .select('id')
-        .eq('user_id', userId)
+        .eq('user_id', authUserId)
         .single();
 
       if (profileError || !userProfile) {
@@ -148,13 +148,13 @@ export class CompanyService {
   }
 
   // Check if user is company owner
-  static async isCompanyOwner(companyId: string, userId: string): Promise<{ isOwner: boolean; error: string | null }> {
+  static async isCompanyOwner(companyId: string, authUserId: string): Promise<{ isOwner: boolean; error: string | null }> {
     try {
       // First get the user profile ID
       const { data: userProfile, error: profileError } = await supabase
         .from('user_profiles')
         .select('id')
-        .eq('user_id', userId)
+        .eq('user_id', authUserId)
         .single();
 
       if (profileError || !userProfile) {
@@ -219,13 +219,13 @@ export class CompanyService {
   }
 
   // Send a join request to a company
-  static async sendJoinRequest(companyId: string, userId: string, message?: string): Promise<{ success: boolean; error: string | null }> {
+  static async sendJoinRequest(companyId: string, authUserId: string, message?: string): Promise<{ success: boolean; error: string | null }> {
     try {
       // First get the user profile ID
       const { data: userProfile, error: profileError } = await supabase
         .from('user_profiles')
         .select('id')
-        .eq('user_id', userId)
+        .eq('user_id', authUserId)
         .single();
 
       if (profileError || !userProfile) {
@@ -508,25 +508,15 @@ export class CompanyService {
   }
 
   // Remove a team member from the company
-  static async removeTeamMember(companyId: string, userId: string, removedBy: string): Promise<{ success: boolean; error: string | null }> {
+  static async removeTeamMember(companyId: string, teamMemberUserId: string, removedByUserProfileId: string): Promise<{ success: boolean; error: string | null }> {
     try {
-      // First get the user profile ID
-      const { data: userProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', removedBy)
-        .single();
-
-      if (profileError || !userProfile) {
-        return { success: false, error: 'User profile not found' };
-      }
-
+      // removedByUserProfileId is already the user profile ID, so we can use it directly
       // Check if the user trying to remove is an owner or admin
       const { data: currentUserMember, error: memberCheckError } = await supabase
         .from('company_members')
         .select('role')
         .eq('company_id', companyId)
-        .eq('user_id', userProfile.id)
+        .eq('user_id', removedByUserProfileId)
         .eq('is_active', true)
         .single();
 
@@ -543,7 +533,7 @@ export class CompanyService {
         .from('company_members')
         .select('role')
         .eq('company_id', companyId)
-        .eq('user_id', userId)
+        .eq('user_id', teamMemberUserId)
         .eq('is_active', true)
         .single();
 
@@ -560,7 +550,7 @@ export class CompanyService {
         .from('company_members')
         .update({ is_active: false })
         .eq('company_id', companyId)
-        .eq('user_id', userId);
+        .eq('user_id', teamMemberUserId);
 
       if (deactivateError) {
         return { success: false, error: deactivateError.message };
@@ -570,6 +560,59 @@ export class CompanyService {
     } catch (error) {
       console.error('Error in removeTeamMember:', error);
       return { success: false, error: 'Failed to remove team member' };
+    }
+  }
+
+  // Update team member working schedule
+  static async updateTeamMemberSchedule(
+    companyId: string, 
+    teamMemberUserId: string, 
+    updatedByUserProfileId: string, 
+    schedule: {
+      daily_schedule: DailySchedule;
+      is_part_time: boolean;
+      working_schedule_notes?: string;
+    }
+  ): Promise<{ success: boolean; error: string | null }> {
+    try {
+      // updatedBy is already the user profile ID, so we can use it directly
+      // Check if the user trying to update is an owner or admin
+      const { data: currentUserMember, error: memberCheckError } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', companyId)
+        .eq('user_id', updatedByUserProfileId)
+        .eq('is_active', true)
+        .single();
+
+      if (memberCheckError || !currentUserMember) {
+        return { success: false, error: 'User not found in company' };
+      }
+
+      if (currentUserMember.role !== 'owner' && currentUserMember.role !== 'admin') {
+        return { success: false, error: 'Only owners and admins can update team member schedules' };
+      }
+
+      // Update the team member's working schedule
+      const { error: updateError } = await supabase
+        .from('company_members')
+        .update({
+          daily_schedule: schedule.daily_schedule,
+          is_part_time: schedule.is_part_time,
+          working_schedule_notes: schedule.working_schedule_notes
+        })
+        .eq('company_id', companyId)
+        .eq('user_id', teamMemberUserId)
+        .eq('is_active', true);
+
+      if (updateError) {
+        return { success: false, error: updateError.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Error in updateTeamMemberSchedule:', error);
+      return { success: false, error: 'Failed to update team member schedule' };
     }
   }
 }

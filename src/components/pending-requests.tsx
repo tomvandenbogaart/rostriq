@@ -184,7 +184,7 @@ export function PendingRequests({
                 
                 {request.message && (
                   <p className="text-sm text-muted-foreground/70 mt-2 italic">
-                    "{request.message}"
+                    &ldquo;{request.message}&rdquo;
                   </p>
                 )}
                 
