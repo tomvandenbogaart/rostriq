@@ -106,7 +106,7 @@ export function CompanyFunctionsManager({ companyId, currentUserId }: CompanyFun
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="function-name">Function Name</Label>
               <Input
                 id="function-name"
@@ -115,7 +115,7 @@ export function CompanyFunctionsManager({ companyId, currentUserId }: CompanyFun
                 onChange={(e) => setNewFunction({ ...newFunction, name: e.target.value })}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="function-description">Description (Optional)</Label>
               <Input
                 id="function-description"
@@ -124,7 +124,7 @@ export function CompanyFunctionsManager({ companyId, currentUserId }: CompanyFun
                 onChange={(e) => setNewFunction({ ...newFunction, description: e.target.value })}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="function-color">Color</Label>
               <div className="flex items-center gap-2">
                 <Input

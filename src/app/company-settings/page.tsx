@@ -114,36 +114,16 @@ function CompanySettingsContent() {
   return (
     <>
       <Header />
-      <main className="min-h-screen py-8 px-4">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Header Section */}
-          <div className="text-center space-y-4">
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-              Company Settings
-            </h1>
-            <p className="text-xl text-muted-foreground">
-              Manage your company profile, team members, and settings
-            </p>
-            <div className="flex items-center justify-center gap-4">
-              <Button 
-                variant="outline"
-                onClick={() => router.push('/dashboard')}
-              >
-                ← Back to Dashboard
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => router.push('/company-profile')}
-              >
-                View Company Profile
-              </Button>
-            </div>
+      <main className="min-h-screen py-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground">Company Settings</h1>
+            <p className="text-muted-foreground">Manage your company profile, team members, and settings</p>
           </div>
 
-          {/* Company Profile Management */}
-          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-            {/* Company Profile Card - Takes full width */}
-            <div className="lg:col-span-1">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Company Profile - Takes 2/3 width */}
+            <div className="lg:col-span-2">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -235,15 +215,46 @@ function CompanySettingsContent() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Quick Actions - Takes 1/3 width */}
+            <div className="lg:col-span-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                  <CardDescription>Common company management tasks</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => router.push('/dashboard')}
+                  >
+                    ← Back to Dashboard
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => router.push('/company-profile')}
+                  >
+                    View Company Profile
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => router.push('/team')}
+                  >
+                    Manage Team
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Company Functions Management */}
           <div className="space-y-6">
-            <div className="text-center space-y-4">
-              <h2 className="text-3xl font-bold tracking-tight">Company Functions</h2>
-              <p className="text-lg text-muted-foreground">
-                Create and manage functions that employees can be assigned to
-              </p>
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Company Functions</h2>
+              <p className="text-muted-foreground">Create and manage functions that employees can be assigned to</p>
             </div>
             
             <CompanyFunctionsManager 
@@ -251,8 +262,6 @@ function CompanySettingsContent() {
               currentUserId={userProfile.id} 
             />
           </div>
-
-
         </div>
       </main>
     </>
