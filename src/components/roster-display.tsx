@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { CompanyFunctionsService } from '@/lib/company-functions-service'
-import type { CompanyFunctionView, EmployeeFunctionView } from '@/types/database'
+import { CompanyService } from '@/lib/company-service'
+import type { CompanyFunctionView, EmployeeFunctionView, CompanyMember, DailySchedule } from '@/types/database'
 
 interface RosterShift {
   id: string
@@ -13,6 +14,16 @@ interface RosterShift {
   endTime: string
   status: 'scheduled' | 'confirmed' | 'completed'
   functionColor?: string
+  isWorkingToday: boolean
+}
+
+interface TeamMemberWithProfile extends CompanyMember {
+  user_profile: {
+    email: string;
+    first_name?: string;
+    last_name?: string;
+    avatar_url?: string;
+  };
 }
 
 interface RosterDisplayProps {
@@ -22,8 +33,10 @@ interface RosterDisplayProps {
 export function RosterDisplay({ companyId }: RosterDisplayProps) {
   const [functions, setFunctions] = useState<CompanyFunctionView[]>([])
   const [employees, setEmployees] = useState<EmployeeFunctionView[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMemberWithProfile[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [shifts, setShifts] = useState<RosterShift[]>([])
+  const [selectedDate, setSelectedDate] = useState(new Date())
 
   useEffect(() => {
     loadData()
@@ -32,15 +45,17 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
   const loadData = async () => {
     try {
       setIsLoading(true)
-      const [functionsData, employeesData] = await Promise.all([
+      const [functionsData, employeesData, teamMembersData] = await Promise.all([
         CompanyFunctionsService.getCompanyFunctions(companyId),
         CompanyFunctionsService.getAllEmployeesWithFunctions(companyId),
+        CompanyService.getCompanyTeamMembers(companyId),
       ])
       setFunctions(functionsData)
       setEmployees(employeesData)
+      setTeamMembers(teamMembersData.members || [])
       
-      // Generate sample shifts based on real functions and employees
-      generateSampleShifts(functionsData, employeesData)
+      // Generate shifts based on actual working schedules
+      generateShiftsFromWorkingSchedules(functionsData, employeesData, teamMembersData.members || [])
     } catch (error) {
       console.error('Error loading roster data:', error)
     } finally {
@@ -48,44 +63,114 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
     }
   }
 
-  const generateSampleShifts = (functionsData: CompanyFunctionView[], employeesData: EmployeeFunctionView[]) => {
+  const generateShiftsFromWorkingSchedules = (
+    functionsData: CompanyFunctionView[], 
+    employeesData: EmployeeFunctionView[], 
+    teamMembers: TeamMemberWithProfile[]
+  ) => {
     if (functionsData.length === 0 || employeesData.length === 0) return
 
-    const sampleShifts: RosterShift[] = []
+    const selectedDay = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+    
+    const shifts: RosterShift[] = []
     let shiftId = 1
 
-    // Generate shifts for each function
+    // Generate shifts for each function based on working schedules
     functionsData.forEach((func) => {
       const employeesInFunction = employeesData.filter(emp => emp.function_id === func.id)
       
       if (employeesInFunction.length > 0) {
         // Create shifts for employees in this function
-        employeesInFunction.forEach((employee, index) => {
-          const startHour = 6 + (index * 2) // Stagger start times
-          const endHour = startHour + 8 // 8-hour shifts
+        employeesInFunction.forEach((employee) => {
+          // Find the team member's working schedule
+          const teamMember = teamMembers.find(member => 
+            member.user_profile.email === employee.email
+          )
           
-          sampleShifts.push({
-            id: shiftId.toString(),
-            employeeName: `${employee.first_name} ${employee.last_name}`,
-            role: func.name,
-            startTime: `${startHour.toString().padStart(2, '0')}:00`,
-            endTime: `${endHour.toString().padStart(2, '0')}:00`,
-            status: index % 2 === 0 ? 'confirmed' : 'scheduled',
-            functionColor: func.color,
-          })
-          shiftId++
+          if (teamMember && teamMember.daily_schedule) {
+            const daySchedule = teamMember.daily_schedule[selectedDay as keyof DailySchedule]
+            
+            if (daySchedule?.enabled && daySchedule.start_time && daySchedule.end_time) {
+              // Employee is working on the selected day
+              shifts.push({
+                id: shiftId.toString(),
+                employeeName: `${employee.first_name} ${employee.last_name}`,
+                role: func.name,
+                startTime: daySchedule.start_time.substring(0, 5), // Remove seconds
+                endTime: daySchedule.end_time.substring(0, 5), // Remove seconds
+                status: 'confirmed',
+                functionColor: func.color,
+                isWorkingToday: true,
+              })
+              shiftId++
+            } else {
+              // Employee is not working on the selected day
+              shifts.push({
+                id: shiftId.toString(),
+                employeeName: `${employee.first_name} ${employee.last_name}`,
+                role: func.name,
+                startTime: '--',
+                endTime: '--',
+                status: 'scheduled',
+                functionColor: func.color,
+                isWorkingToday: false,
+              })
+              shiftId++
+            }
+          } else {
+            // No working schedule found, show as unavailable
+            shifts.push({
+              id: shiftId.toString(),
+              employeeName: `${employee.first_name} ${employee.last_name}`,
+              role: func.name,
+              startTime: '--',
+              endTime: '--',
+              status: 'scheduled',
+              functionColor: func.color,
+              isWorkingToday: false,
+            })
+            shiftId++
+          }
         })
       }
     })
 
-    setShifts(sampleShifts)
+    setShifts(shifts)
   }
+
+  // Navigate to previous day
+  const goToPreviousDay = () => {
+    const newDate = new Date(selectedDate)
+    newDate.setDate(selectedDate.getDate() - 1)
+    setSelectedDate(newDate)
+  }
+
+  // Navigate to next day
+  const goToNextDay = () => {
+    const newDate = new Date(selectedDate)
+    newDate.setDate(selectedDate.getDate() + 1)
+    setSelectedDate(newDate)
+  }
+
+  // Go to today
+  const goToToday = () => {
+    setSelectedDate(new Date())
+  }
+
+  // Regenerate shifts when selected date changes
+  useEffect(() => {
+    if (functions.length > 0 && employees.length > 0 && teamMembers.length > 0) {
+      generateShiftsFromWorkingSchedules(functions, employees, teamMembers)
+    }
+  }, [selectedDate, functions, employees, teamMembers])
 
   // Generate time slots from 6 AM to 11 PM (18 hours)
   const timeSlots = Array.from({ length: 18 }, (_, i) => {
     const hour = i + 6
     return hour < 24 ? `${hour.toString().padStart(2, '0')}:00` : `${(hour - 24).toString().padStart(2, '0')}:00`
   })
+  
+
 
   if (isLoading) {
     return (
@@ -108,13 +193,51 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
     )
   }
 
-  const currentDate = new Date()
-  const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' })
-  const dateString = currentDate.toLocaleDateString('en-US', { 
+  // Check if any team members have working schedules set up
+  const hasWorkingSchedules = teamMembers.some(member => 
+    member.daily_schedule && Object.values(member.daily_schedule).some(day => day?.enabled)
+  )
+
+  if (!hasWorkingSchedules) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-muted-foreground mb-4">
+          No working schedules configured yet
+        </div>
+        <div className="text-sm text-muted-foreground mb-4">
+          Team members need to have their working hours and days configured to see the schedule.
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Company owners and admins can set working schedules for team members in the Team Directory.
+        </div>
+      </div>
+    )
+  }
+
+  // Check if any employees are assigned to functions
+  if (employees.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-muted-foreground mb-4">
+          No employees assigned to functions yet
+        </div>
+        <div className="text-sm text-muted-foreground mb-4">
+          Employees need to be assigned to company functions to appear in the schedule.
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Company owners and admins can assign employees to functions in the Team Directory.
+        </div>
+      </div>
+    )
+  }
+
+  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' })
+  const dateString = selectedDate.toLocaleDateString('en-US', { 
     month: 'long', 
     day: 'numeric',
     year: 'numeric'
   })
+  const isToday = selectedDate.toDateString() === new Date().toDateString()
 
   // Group shifts by role
   const shiftsByRole = shifts.reduce((acc, shift) => {
@@ -127,19 +250,29 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
 
   const uniqueRoles = Object.keys(shiftsByRole)
 
+  // Count working employees today
+  const workingEmployeesCount = shifts.filter(shift => shift.isWorkingToday).length
+
+  // Note: We'll always show the schedule, even when no one is working
+
   return (
     <div className="space-y-4">
       {/* Day Navigation */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">{dayName}, {dateString}</h2>
-          <p className="text-sm text-muted-foreground">{shifts.length} employees scheduled</p>
+          <p className="text-sm text-muted-foreground">
+            {workingEmployeesCount} of {shifts.length} employees working {isToday ? 'today' : 'on ' + dayName}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={goToPreviousDay}>
             ← Previous Day
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={goToToday}>
+            Today
+          </Button>
+          <Button variant="outline" size="sm" onClick={goToNextDay}>
             Next Day →
           </Button>
           <div className="w-px h-6 bg-border mx-2" />
@@ -155,7 +288,7 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
           </Button>
           <Button variant="outline" size="sm" title="Share with Team">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367 2.684z" />
             </svg>
           </Button>
         </div>
@@ -166,34 +299,28 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
         <div className="overflow-x-auto">
               {/* Header Row with Job Roles */}
               <div className="flex border-b border-border">
-                <div className="w-20 flex-shrink-0 py-2 px-2 font-medium text-xs border-r border-border bg-muted/30">
+                <div className="w-16 flex-shrink-0 py-1 px-1 font-medium text-xs border-r border-border bg-muted/30">
                   Time
                 </div>
                 {uniqueRoles.map((role) => {
-                  const functionData = functions.find(f => f.name === role)
                   return (
                     <div 
                       key={role}
-                      className="flex-1 py-1 px-2 text-center text-xs font-medium border-r border-border bg-muted/20"
+                      className="flex-1 py-1 px-1 text-center text-xs font-medium border-r border-border bg-muted/20"
                     >
-                      <div className="font-medium">{role}</div>
-                      {functionData?.description && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {functionData.description}
-                        </div>
-                      )}
+                      {role}
                     </div>
                   )
                 })}
               </div>
 
               {/* Grid Container */}
-              <div className="relative">
+              <div className="relative" style={{ minHeight: `${timeSlots.length * 32}px` }}>
                 {/* Time Rows Background */}
                 {timeSlots.map((time) => (
                   <div key={time} className="flex border-b border-border hover:bg-muted/20">
                     {/* Time Info Column */}
-                    <div className="w-20 flex-shrink-0 py-1 px-2 border-r border-border bg-muted/10">
+                    <div className="w-16 flex-shrink-0 py-1 px-1 border-r border-border bg-muted/10">
                       <div className="font-medium text-xs">{time}</div>
                     </div>
 
@@ -208,66 +335,128 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
                 ))}
 
                 {/* Shift Blocks - Positioned Absolutely */}
-                {uniqueRoles.map((role, roleIndex) => {
-                  const roleShifts = shiftsByRole[role]
-                  const functionData = functions.find(f => f.name === role)
-                  
-                  return roleShifts.map((shift, employeeIndex) => {
-                    const shiftStartHour = parseInt(shift.startTime.split(':')[0])
-                    const shiftEndHour = parseInt(shift.endTime.split(':')[0])
+                {workingEmployeesCount === 0 ? (
+                  // Show message when no one is working
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center p-8">
+                      <div className="text-muted-foreground mb-2">
+                        No one is scheduled to work on {dayName}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        All employees are off today
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  uniqueRoles.map((role, roleIndex) => {
+                    const roleShifts = shiftsByRole[role]
+                    const workingShifts = roleShifts.filter(shift => shift.isWorkingToday)
                     
-                    // Handle overnight shifts
-                    let adjustedEndHour = shiftEndHour
-                    if (shiftEndHour < shiftStartHour) {
-                      adjustedEndHour = shiftEndHour + 24
-                    }
+                    // Always position employees side by side within their role column for consistency
+                    if (workingShifts.length === 0) return null
                     
-                    // Calculate position and height
-                    const startRowIndex = shiftStartHour - 6 // 6 AM is index 0
-                    const endRowIndex = adjustedEndHour - 6
-                    const totalRows = timeSlots.length
+                    // Calculate column width and positioning
+                    const columnWidthCalc = `calc((100% - 64px) / ${uniqueRoles.length})`
+                    const gap = `4px`
+                    const totalGaps = Math.max(0, (workingShifts.length - 1) * 4) // 4px gap between employees
                     
-                    // Only show if shift is within our time range
-                    if (startRowIndex < 0 || startRowIndex >= totalRows) return null
+                    // Calculate consistent employee width
+                    const employeeWidth = workingShifts.length === 1 
+                      ? `calc(${columnWidthCalc} - 8px)` // Full width minus margins
+                      : `calc((${columnWidthCalc} - ${totalGaps}px - 8px) / ${workingShifts.length})`
                     
-                    const top = `calc(${(startRowIndex / totalRows) * 100}% + 2px)`
-                    const height = `calc(${((endRowIndex - startRowIndex) / totalRows) * 100}% - 4px)`
-                    const columnWidth = `calc((100% - 80px) / ${uniqueRoles.length})`
-                    
-                    // Position employees side by side within their role column
-                    const employeesInRole = roleShifts.length
-                    const employeeWidth = `calc(${columnWidth} / ${employeesInRole} - 8px)`
-                    const left = `calc(80px + ${columnWidth} * ${roleIndex} + ${employeeWidth} * ${employeeIndex} + 4px + ${4 * employeeIndex}px)`
-                    
-                    return (
-                      <div
-                        key={shift.id}
-                        className="absolute border rounded-md shadow-sm flex items-center justify-center"
-                        style={{
-                          top,
-                          height,
-                          left,
-                          width: employeeWidth,
-                          zIndex: 10,
-                          backgroundColor: `${shift.functionColor || '#3b82f6'}20`,
-                          borderColor: `${shift.functionColor || '#3b82f6'}30`,
-                        }}
-                      >
-                        <div className="text-xs font-medium text-center p-1">
-                          <div className="text-xs" style={{ color: shift.functionColor || '#3b82f6' }}>
-                            {shift.employeeName}
-                          </div>
-                          <div className="text-xs opacity-75">
-                            {shift.startTime} - {shift.endTime}
+                    return workingShifts.map((shift, employeeIndex) => {
+                      const shiftStartHour = parseInt(shift.startTime.split(':')[0])
+                      const shiftEndHour = parseInt(shift.endTime.split(':')[0])
+                      
+                      // Handle overnight shifts
+                      let adjustedEndHour = shiftEndHour
+                      if (shiftEndHour < shiftStartHour) {
+                        adjustedEndHour = shiftEndHour + 24
+                      }
+                      
+                      // Calculate position and height
+                      const startRowIndex = shiftStartHour - 6 // 6 AM is index 0
+                      const endRowIndex = adjustedEndHour - 6
+                      const totalRows = timeSlots.length
+                      
+                      // Only show if shift is within our time range
+                      if (startRowIndex < 0 || startRowIndex >= totalRows) return null
+                      
+                      const top = `calc(${(startRowIndex / totalRows) * 100}% + 2px)`
+                      const height = `calc(${((endRowIndex - startRowIndex) / totalRows) * 100}% - 4px)`
+                      
+                      // Position employees side by side within their role column
+                      const left = workingShifts.length === 1
+                        ? `calc(64px + ${columnWidthCalc} * ${roleIndex} + 4px)` // Centered in column
+                        : `calc(64px + ${columnWidthCalc} * ${roleIndex} + 4px + ${employeeIndex} * (${employeeWidth} + 4px))` // Side by side
+                      
+                      return (
+                        <div
+                          key={shift.id}
+                          className="absolute border rounded-lg shadow-md flex items-center justify-center"
+                          style={{
+                            top,
+                            height,
+                            left,
+                            width: employeeWidth,
+                            zIndex: 10,
+                            backgroundColor: `${shift.functionColor || '#3b82f6'}15`,
+                            borderColor: `${shift.functionColor || '#3b82f6'}40`,
+                          }}
+                        >
+                          <div className="text-xs font-medium text-center p-2">
+                            <div className="text-sm font-semibold" style={{ color: shift.functionColor || '#3b82f6' }}>
+                              {shift.employeeName}
+                            </div>
+                            <div className="text-xs opacity-80 mt-1">
+                              {shift.startTime} - {shift.endTime}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })
-                }).flat()}
+                      )
+                    })
+                  }).flat()
+                )}
               </div>
             </div>
           </div>
+
+      {/* Employee Status Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {uniqueRoles.map((role) => {
+          const roleShifts = shiftsByRole[role]
+          const workingEmployees = roleShifts.filter(shift => shift.isWorkingToday)
+          const totalEmployees = roleShifts.length
+          
+          return (
+            <div key={role} className="border border-border rounded-lg p-4">
+              <h3 className="font-medium text-sm mb-2">{role}</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Working {isToday ? 'today' : 'on ' + dayName}:</span>
+                  <span className="font-medium">{workingEmployees.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Total employees:</span>
+                  <span className="font-medium">{totalEmployees}</span>
+                </div>
+                {workingEmployees.length > 0 && (
+                  <div className="pt-2 border-t border-border">
+                    <div className="text-xs text-muted-foreground mb-1">{isToday ? 'Today\'s' : `${dayName}'s`} shifts:</div>
+                    {workingEmployees.map((shift) => (
+                      <div key={shift.id} className="text-xs flex justify-between">
+                        <span>{shift.employeeName}</span>
+                        <span>{shift.startTime} - {shift.endTime}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -217,6 +217,24 @@ function DashboardContent() {
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
                           5
                         </div>
+                        <span>Create company functions</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
+                          6
+                        </div>
+                        <span>Assign employees to functions</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
+                          7
+                        </div>
+                        <span>Set up working schedules</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
+                          8
+                        </div>
                         <span>Create your first roster</span>
                       </div>
                     </>
@@ -233,6 +251,12 @@ function DashboardContent() {
                           4
                         </div>
                         <span>View your schedule</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
+                          5
+                        </div>
+                        <span>Check working hours</span>
                       </div>
                     </>
                   )}
