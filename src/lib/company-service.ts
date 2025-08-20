@@ -179,6 +179,38 @@ export class CompanyService {
     }
   }
 
+  // Check if user can view join requests (is owner or admin)
+  static async canViewJoinRequests(companyId: string, authUserId: string): Promise<{ canView: boolean; error: string | null }> {
+    try {
+      // First get the user profile ID
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', authUserId)
+        .single();
+
+      if (profileError || !userProfile) {
+        return { canView: false, error: 'User profile not found' };
+      }
+
+      const { data: member, error } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', companyId)
+        .eq('user_id', userProfile.id)
+        .eq('is_active', true)
+        .single();
+
+      if (error) {
+        return { canView: false, error: error.message };
+      }
+
+      return { canView: member.role === 'owner' || member.role === 'admin', error: null };
+    } catch (error) {
+      return { canView: false, error: 'Failed to check permissions' };
+    }
+  }
+
   // Get company members
   static async getCompanyMembers(companyId: string): Promise<{ members: CompanyMember[]; error: string | null }> {
     try {
@@ -613,6 +645,26 @@ export class CompanyService {
     } catch (error) {
       console.error('Error in updateTeamMemberSchedule:', error);
       return { success: false, error: 'Failed to update team member schedule' };
+    }
+  }
+
+  // Get pending join request count for a company
+  static async getPendingJoinRequestCount(companyId: string): Promise<{ count: number; error: string | null }> {
+    try {
+      const { count, error } = await supabase
+        .from('company_join_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .eq('status', 'pending');
+
+      if (error) {
+        return { count: 0, error: error.message };
+      }
+
+      return { count: count || 0, error: null };
+    } catch (error) {
+      console.error('Error in getPendingJoinRequestCount:', error);
+      return { count: 0, error: 'Failed to fetch join request count' };
     }
   }
 }

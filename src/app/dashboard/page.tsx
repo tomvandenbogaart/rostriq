@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Company, UserProfile } from '@/types/database'
 import { RosterDisplay } from '@/components/roster-display'
+import { MonthlyScheduleView } from '@/components/monthly-schedule-view'
 import { X } from 'lucide-react'
 
 interface User {
@@ -24,6 +25,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userCompany, setUserCompany] = useState<Company | null>(null)
+  const [showMonthlyView, setShowMonthlyView] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlRole = searchParams.get('role')
@@ -93,6 +95,8 @@ function DashboardContent() {
     getUser()
   }, [router, urlRole])
 
+
+
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut()
@@ -127,22 +131,89 @@ function DashboardContent() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
 
 
-          {/* Today's Schedule Header */}
+          {/* Schedule Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-foreground">Today&apos;s Schedule</h1>
-              <p className="text-muted-foreground">View and manage your team&apos;s daily schedule</p>
+              <h1 className="text-4xl font-bold text-foreground">
+                {showMonthlyView ? 'Monthly Schedule' : 'Today\'s Schedule'}
+              </h1>
+              <p className="text-muted-foreground">
+                {showMonthlyView 
+                  ? 'Get a bird\'s eye view of your team\'s working schedules for the entire month'
+                  : 'View and manage your team\'s daily schedule'
+                }
+              </p>
             </div>
             <div className="flex gap-3">
+              <Button 
+                variant={showMonthlyView ? "default" : "outline"} 
+                onClick={() => setShowMonthlyView(!showMonthlyView)}
+              >
+                {showMonthlyView ? 'Today\'s View' : 'Monthly View'}
+              </Button>
               <Button>
                 Create New Roster
               </Button>
             </div>
           </div>
 
-          {/* Direct Roster Display */}
+          {/* Schedule Content */}
           {userCompany ? (
-            <RosterDisplay companyId={userCompany.id} />
+            showMonthlyView ? (
+              <MonthlyScheduleView 
+                schedules={[
+                  {
+                    id: '1',
+                    name: 'John Smith',
+                    daily_schedule: {
+                      monday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                      tuesday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                      wednesday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                      thursday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                      friday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
+                      saturday: { enabled: false },
+                      sunday: { enabled: false },
+                    },
+                    is_part_time: false,
+                    working_schedule_notes: 'Full-time employee'
+                  },
+                  {
+                    id: '2',
+                    name: 'Sarah Johnson',
+                    daily_schedule: {
+                      monday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
+                      tuesday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
+                      wednesday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
+                      thursday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
+                      friday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
+                      saturday: { enabled: false },
+                      sunday: { enabled: false },
+                    },
+                    is_part_time: true,
+                    working_schedule_notes: 'Part-time employee'
+                  },
+                  {
+                    id: '3',
+                    name: 'Mike Wilson',
+                    daily_schedule: {
+                      monday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
+                      tuesday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
+                      wednesday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
+                      thursday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
+                      friday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
+                      saturday: { enabled: true, start_time: '09:00:00', end_time: '15:00:00' },
+                      sunday: { enabled: false },
+                    },
+                    is_part_time: false,
+                    working_schedule_notes: 'Full-time with Saturday shifts'
+                  }
+                ]}
+                currentMonth={new Date()}
+                onMonthChange={() => {}}
+              />
+            ) : (
+              <RosterDisplay companyId={userCompany.id} />
+            )
           ) : (
             <Card>
               <CardContent className="text-center py-8">
@@ -155,6 +226,8 @@ function DashboardContent() {
               </CardContent>
             </Card>
           )}
+
+
 
           {/* Getting Started Card */}
           {!localStorage.getItem('gettingStartedDismissed') && (

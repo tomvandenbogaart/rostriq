@@ -1,53 +1,101 @@
 'use client';
 
-import { Company, CompanyMember } from '@/types/database';
-import { useEffect, useState } from 'react';
-import { CompanyService } from '@/lib/company-service';
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Users, UserPlus } from 'lucide-react';
 import { TeamDirectory } from './team-directory';
 import { CompanyJoinRequests } from './company-join-requests';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { CompanyMember } from '@/types/database';
 
-interface TeamPageContentProps {
-  company: Company;
-  currentUserId: string;
+interface TeamMemberWithProfile extends CompanyMember {
+  user_profile: {
+    email: string;
+    first_name?: string;
+    last_name?: string;
+    avatar_url?: string;
+  };
 }
 
-export function TeamPageContent({ company, currentUserId }: TeamPageContentProps) {
-  const [teamMembers, setTeamMembers] = useState<(CompanyMember & { user_profile: { email: string; first_name?: string; last_name?: string; avatar_url?: string } })[]>([]);
-  const [isLoadingTeam, setIsLoadingTeam] = useState(true);
-  const [teamError, setTeamError] = useState<string | null>(null);
+interface TeamPageContentProps {
+  members: TeamMemberWithProfile[];
+  isLoading?: boolean;
+  error?: string | null;
+  companyId: string;
+  currentUserId: string;
+  viewOnly?: boolean;
+  onTeamMembersChange?: () => void;
+}
 
-  const fetchTeamMembers = async () => {
-    setIsLoadingTeam(true);
-    setTeamError(null);
-    
-    const { members, error } = await CompanyService.getCompanyTeamMembers(company.id);
-    
-    if (error) {
-      setTeamError(error);
-    } else {
-      setTeamMembers(members || []);
-    }
-    
-    setIsLoadingTeam(false);
-  };
-
-  useEffect(() => {
-    fetchTeamMembers();
-  }, [company.id]);
+export function TeamPageContent({ 
+  members, 
+  isLoading, 
+  error, 
+  companyId, 
+  currentUserId, 
+  viewOnly = false, 
+  onTeamMembersChange 
+}: TeamPageContentProps) {
 
   return (
-    <>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Team Management</h1>
+          <p className="text-muted-foreground">
+            Manage your team members, roles, and working schedules
+          </p>
+        </div>
+        {!viewOnly && (
+          <div className="flex items-center gap-2">
+            <Button size="sm">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Invite Member
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Stats */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold">{members?.length || 0}</div>
+              <div className="text-sm text-muted-foreground">Total Members</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-3xl font-bold">
+                {members?.filter(m => !m.is_part_time).length || 0}
+              </div>
+              <div className="text-sm text-muted-foreground">Full-time</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-3xl font-bold">
+                {members?.filter(m => m.is_part_time).length || 0}
+              </div>
+              <div className="text-sm text-muted-foreground">Part-time</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Team Directory and Join Requests */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Team Directory - Takes 3/4 width */}
         <div className="lg:col-span-3">
-          <TeamDirectory 
-            members={teamMembers}
-            isLoading={isLoadingTeam}
-            error={teamError}
-            companyId={company.id}
+          <TeamDirectory
+            members={members}
+            isLoading={isLoading}
+            error={error}
+            companyId={companyId}
             currentUserId={currentUserId}
-            onTeamMembersChange={fetchTeamMembers}
+            viewOnly={viewOnly}
+            onTeamMembersChange={onTeamMembersChange}
           />
         </div>
 
@@ -62,13 +110,13 @@ export function TeamPageContent({ company, currentUserId }: TeamPageContentProps
             </CardHeader>
             <CardContent>
               <CompanyJoinRequests 
-                companyId={company.id} 
-                onRequestProcessed={fetchTeamMembers}
+                companyId={companyId} 
+                onRequestProcessed={onTeamMembersChange}
               />
             </CardContent>
           </Card>
         </div>
       </div>
-    </>
+    </div>
   );
 }

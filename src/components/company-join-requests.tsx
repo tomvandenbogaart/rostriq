@@ -69,6 +69,8 @@ export function CompanyJoinRequests({ companyId, onRequestProcessed }: CompanyJo
         if (onRequestProcessed) {
           onRequestProcessed()
         }
+        // Refresh header count
+        window.dispatchEvent(new CustomEvent('refreshJoinRequestCount'))
       } else {
         toast.error(error || 'Failed to approve join request')
       }
@@ -100,6 +102,8 @@ export function CompanyJoinRequests({ companyId, onRequestProcessed }: CompanyJo
         if (onRequestProcessed) {
           onRequestProcessed()
         }
+        // Refresh header count
+        window.dispatchEvent(new CustomEvent('refreshJoinRequestCount'))
       } else {
         toast.error(error || 'Failed to reject join request')
       }

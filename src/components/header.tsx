@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { supabase } from '@/lib/supabase'
+import { CompanyService } from '@/lib/company-service'
 import { ChevronDown, Settings, User, Building2, LogOut } from 'lucide-react'
 
 interface User {
@@ -18,6 +20,7 @@ export function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [joinRequestCount, setJoinRequestCount] = useState(0)
   const router = useRouter()
 
   useEffect(() => {
@@ -49,12 +52,61 @@ export function Header() {
           })
         } else {
           setUser(null)
+          setJoinRequestCount(0)
         }
       }
     )
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Fetch join request count when user is authenticated
+  useEffect(() => {
+    const fetchJoinRequestCount = async () => {
+      if (!user) {
+        setJoinRequestCount(0)
+        return
+      }
+
+      try {
+        // Get user's companies
+        const { companies, error } = await CompanyService.getUserCompanies(user.id)
+        if (error || !companies || companies.length === 0) {
+          setJoinRequestCount(0)
+          return
+        }
+
+        // Get count for the first company (assuming user is in one company)
+        const company = companies[0]
+        
+        // Check if user can view join requests
+        const { canView } = await CompanyService.canViewJoinRequests(company.id, user.id)
+        if (!canView) {
+          setJoinRequestCount(0)
+          return
+        }
+
+        const { count } = await CompanyService.getPendingJoinRequestCount(company.id)
+        setJoinRequestCount(count)
+      } catch (error) {
+        console.error('Error fetching join request count:', error)
+        setJoinRequestCount(0)
+      }
+    }
+
+    fetchJoinRequestCount()
+
+    // Listen for custom events to refresh the count
+    const handleRefreshCount = () => {
+      fetchJoinRequestCount()
+    }
+
+    window.addEventListener('refreshJoinRequestCount', handleRefreshCount)
+    
+    return () => {
+      window.removeEventListener('refreshJoinRequestCount', handleRefreshCount)
+    }
+  }, [user])
 
   const handleSignOut = async () => {
     try {
@@ -132,15 +184,29 @@ export function Header() {
                 </Link>
                 <Link 
                   href="/team" 
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative"
                 >
                   Team
+                  {joinRequestCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-2 -right-3 rounded-full px-1 py-0 text-white text-xs font-medium"
+                    >
+                      {joinRequestCount > 99 ? '99+' : joinRequestCount}
+                    </Badge>
+                  )}
                 </Link>
                 <Link 
                   href="/reports" 
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Reports
+                </Link>
+                <Link 
+                  href="/demo-functions" 
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Demos
                 </Link>
 
               </div>
@@ -295,10 +361,20 @@ export function Header() {
                   </Link>
                   <Link
                     href="/team"
-                    className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                    className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors relative"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Team
+                    <div className="flex items-center justify-between">
+                      <span>Team</span>
+                      {joinRequestCount > 0 && (
+                        <Badge 
+                          variant="destructive"
+                          className="rounded-full px-1 py-0 text-white text-xs font-medium"
+                        >
+                          {joinRequestCount > 99 ? '99+' : joinRequestCount}
+                        </Badge>
+                      )}
+                    </div>
                   </Link>
                   <Link
                     href="/reports"

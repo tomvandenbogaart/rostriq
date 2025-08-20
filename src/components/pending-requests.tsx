@@ -47,6 +47,8 @@ export function PendingRequests({
       
       if (success) {
         onRequestUpdate();
+        // Refresh header count
+        window.dispatchEvent(new CustomEvent('refreshJoinRequestCount'));
       } else {
         console.error('Failed to approve request:', error);
       }
@@ -75,6 +77,8 @@ export function PendingRequests({
       
       if (success) {
         onRequestUpdate();
+        // Refresh header count
+        window.dispatchEvent(new CustomEvent('refreshJoinRequestCount'));
       } else {
         console.error('Failed to reject request:', error);
       }

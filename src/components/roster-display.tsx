@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { CompanyFunctionsService } from '@/lib/company-functions-service'
 import { CompanyService } from '@/lib/company-service'
 import type { CompanyFunctionView, EmployeeFunctionView, CompanyMember, DailySchedule } from '@/types/database'
@@ -68,43 +69,69 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
     employeesData: EmployeeFunctionView[], 
     teamMembers: TeamMemberWithProfile[]
   ) => {
-    if (functionsData.length === 0 || employeesData.length === 0) return
-
     const selectedDay = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
     
     const shifts: RosterShift[] = []
     let shiftId = 1
 
-    // Generate shifts for each function based on working schedules
-    functionsData.forEach((func) => {
-      const employeesInFunction = employeesData.filter(emp => emp.function_id === func.id)
-      
-      if (employeesInFunction.length > 0) {
-        // Create shifts for employees in this function
-        employeesInFunction.forEach((employee) => {
-          // Find the team member's working schedule
-          const teamMember = teamMembers.find(member => 
-            member.user_profile.email === employee.email
-          )
-          
-          if (teamMember && teamMember.daily_schedule) {
-            const daySchedule = teamMember.daily_schedule[selectedDay as keyof DailySchedule]
+    // If no functions or employees, create empty structure
+    if (functionsData.length === 0 || employeesData.length === 0) {
+      // Create empty slots to show the calendar structure
+      shifts.push({
+        id: 'empty-1',
+        employeeName: 'No employees assigned',
+        role: 'No functions created',
+        startTime: '--',
+        endTime: '--',
+        status: 'scheduled',
+        functionColor: '#6b7280',
+        isWorkingToday: false,
+      })
+    } else {
+      // Generate shifts for each function based on working schedules
+      functionsData.forEach((func) => {
+        const employeesInFunction = employeesData.filter(emp => emp.function_id === func.id)
+        
+        if (employeesInFunction.length > 0) {
+          // Create shifts for employees in this function
+          employeesInFunction.forEach((employee) => {
+            // Find the team member's working schedule
+            const teamMember = teamMembers.find(member => 
+              member.user_profile.email === employee.email
+            )
             
-            if (daySchedule?.enabled && daySchedule.start_time && daySchedule.end_time) {
-              // Employee is working on the selected day
-              shifts.push({
-                id: shiftId.toString(),
-                employeeName: `${employee.first_name} ${employee.last_name}`,
-                role: func.name,
-                startTime: daySchedule.start_time.substring(0, 5), // Remove seconds
-                endTime: daySchedule.end_time.substring(0, 5), // Remove seconds
-                status: 'confirmed',
-                functionColor: func.color,
-                isWorkingToday: true,
-              })
-              shiftId++
+            if (teamMember && teamMember.daily_schedule) {
+              const daySchedule = teamMember.daily_schedule[selectedDay as keyof DailySchedule]
+              
+              if (daySchedule?.enabled && daySchedule.start_time && daySchedule.end_time) {
+                // Employee is working on the selected day
+                shifts.push({
+                  id: shiftId.toString(),
+                  employeeName: `${employee.first_name} ${employee.last_name}`,
+                  role: func.name,
+                  startTime: daySchedule.start_time.substring(0, 5), // Remove seconds
+                  endTime: daySchedule.end_time.substring(0, 5), // Remove seconds
+                  status: 'confirmed',
+                  functionColor: func.color,
+                  isWorkingToday: true,
+                })
+                shiftId++
+              } else {
+                // Employee is not working on the selected day
+                shifts.push({
+                  id: shiftId.toString(),
+                  employeeName: `${employee.first_name} ${employee.last_name}`,
+                  role: func.name,
+                  startTime: '--',
+                  endTime: '--',
+                  status: 'scheduled',
+                  functionColor: func.color,
+                  isWorkingToday: false,
+                })
+                shiftId++
+              }
             } else {
-              // Employee is not working on the selected day
+              // No working schedule found, show as unavailable
               shifts.push({
                 id: shiftId.toString(),
                 employeeName: `${employee.first_name} ${employee.last_name}`,
@@ -117,23 +144,10 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
               })
               shiftId++
             }
-          } else {
-            // No working schedule found, show as unavailable
-            shifts.push({
-              id: shiftId.toString(),
-              employeeName: `${employee.first_name} ${employee.last_name}`,
-              role: func.name,
-              startTime: '--',
-              endTime: '--',
-              status: 'scheduled',
-              functionColor: func.color,
-              isWorkingToday: false,
-            })
-            shiftId++
-          }
-        })
-      }
-    })
+          })
+        }
+      })
+    }
 
     setShifts(shifts)
   }
@@ -198,38 +212,11 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
     member.daily_schedule && Object.values(member.daily_schedule).some(day => day?.enabled)
   )
 
-  if (!hasWorkingSchedules) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-muted-foreground mb-4">
-          No working schedules configured yet
-        </div>
-        <div className="text-sm text-muted-foreground mb-4">
-          Team members need to have their working hours and days configured to see the schedule.
-        </div>
-        <div className="text-xs text-muted-foreground">
-          Company owners and admins can set working schedules for team members in the Team Directory.
-        </div>
-      </div>
-    )
-  }
+  // Always show the schedule structure, even when empty
+  // If no working schedules, we'll show empty slots
 
-  // Check if any employees are assigned to functions
-  if (employees.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-muted-foreground mb-4">
-          No employees assigned to functions yet
-        </div>
-        <div className="text-sm text-muted-foreground mb-4">
-          Employees need to be assigned to company functions to appear in the schedule.
-        </div>
-        <div className="text-xs text-muted-foreground">
-          Company owners and admins can assign employees to functions in the Team Directory.
-        </div>
-      </div>
-    )
-  }
+  // Always show the schedule structure, even when empty
+  // If no employees assigned, we'll show empty slots
 
   const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' })
   const dateString = selectedDate.toLocaleDateString('en-US', { 
@@ -293,6 +280,33 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
           </Button>
         </div>
       </div>
+
+      {/* Help Message for Empty Schedules */}
+      {!hasWorkingSchedules && (
+        <div className="mb-4 p-4 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-muted/50 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">No working schedules configured yet</p>
+              <p className="text-xs text-muted-foreground">
+                Team members need to have their working hours and days configured to see the schedule.
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="h-auto p-0 ml-1 text-xs"
+                  onClick={() => window.location.href = '/team'}
+                >
+                  Go to Team Directory →
+                </Button>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Schedule Grid */}
       <div className="border border-border rounded-lg overflow-hidden">

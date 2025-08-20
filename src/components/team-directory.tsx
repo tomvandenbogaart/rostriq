@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { CompanyFunctionsService } from '@/lib/company-functions-service';
 import { CompanyService } from '@/lib/company-service';
 import { WorkingScheduleEditor } from '@/components/working-schedule-editor';
+import { Pencil, Search } from 'lucide-react';
 import type { CompanyFunctionView, EmployeeFunctionView, CreateCompanyFunctionAssignment, DailySchedule } from '@/types/database';
 
 interface TeamMemberWithProfile extends CompanyMember {
@@ -44,6 +46,7 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
   const [isAssigning, setIsAssigning] = useState(false);
   const [editingScheduleFor, setEditingScheduleFor] = useState<string | null>(null);
   const [isUpdatingSchedule, setIsUpdatingSchedule] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const currentOperationRef = useRef<string | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -306,6 +309,22 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
     return employeeFunctions.filter(ef => ef.user_id === userId);
   };
 
+  // Filter members based on search query
+  const filteredMembers = members.filter(member => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const firstName = member.user_profile?.first_name?.toLowerCase() || '';
+    const lastName = member.user_profile?.last_name?.toLowerCase() || '';
+    const email = member.user_profile?.email?.toLowerCase() || '';
+    const role = member.role?.toLowerCase() || '';
+    
+    return firstName.includes(query) || 
+           lastName.includes(query) || 
+           email.includes(query) || 
+           role.includes(query);
+  });
+
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'owner':
@@ -473,6 +492,25 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by name, email, or role..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          {searchQuery && (
+            <div className="mt-2 text-sm text-muted-foreground">
+              Showing {filteredMembers.length} of {members.length} members
+            </div>
+          )}
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -488,7 +526,7 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => {
+              {filteredMembers.map((member) => {
                 const memberFunctions = getMemberFunctions(member.user_id);
                 
                 return (
@@ -578,17 +616,20 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                     </td>
                     
                     <td className="py-4 px-4">
-                      <div className="space-y-2">
-                        {formatWorkingSchedule(member)}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          {formatWorkingSchedule(member)}
+                        </div>
                         {!viewOnly && (
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => setEditingScheduleFor(member.user_id)}
-                            className="text-xs"
+                            className="h-8 w-8 p-0 ml-2"
+                            title={(member.daily_schedule && Object.values(member.daily_schedule).some(day => day?.enabled)) || 
+                                   (member.working_days && member.working_days.length > 0) ? 'Edit Schedule' : 'Set Schedule'}
                           >
-                            {(member.daily_schedule && Object.values(member.daily_schedule).some(day => day?.enabled)) || 
-                             (member.working_days && member.working_days.length > 0) ? 'Edit' : 'Set'} Schedule
+                            <Pencil className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
