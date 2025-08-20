@@ -506,4 +506,70 @@ export class CompanyService {
       return { members: [], error: 'Failed to fetch team members' };
     }
   }
+
+  // Remove a team member from the company
+  static async removeTeamMember(companyId: string, userId: string, removedBy: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      // First get the user profile ID
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', removedBy)
+        .single();
+
+      if (profileError || !userProfile) {
+        return { success: false, error: 'User profile not found' };
+      }
+
+      // Check if the user trying to remove is an owner or admin
+      const { data: currentUserMember, error: memberCheckError } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', companyId)
+        .eq('user_id', userProfile.id)
+        .eq('is_active', true)
+        .single();
+
+      if (memberCheckError || !currentUserMember) {
+        return { success: false, error: 'User not found in company' };
+      }
+
+      if (currentUserMember.role !== 'owner' && currentUserMember.role !== 'admin') {
+        return { success: false, error: 'Only owners and admins can remove team members' };
+      }
+
+      // Check if the user being removed is the owner
+      const { data: memberToRemove, error: removeCheckError } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', companyId)
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .single();
+
+      if (removeCheckError || !memberToRemove) {
+        return { success: false, error: 'Team member not found' };
+      }
+
+      if (memberToRemove.role === 'owner') {
+        return { success: false, error: 'Cannot remove the company owner' };
+      }
+
+      // Deactivate the team member (soft delete)
+      const { error: deactivateError } = await supabase
+        .from('company_members')
+        .update({ is_active: false })
+        .eq('company_id', companyId)
+        .eq('user_id', userId);
+
+      if (deactivateError) {
+        return { success: false, error: deactivateError.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Error in removeTeamMember:', error);
+      return { success: false, error: 'Failed to remove team member' };
+    }
+  }
 }

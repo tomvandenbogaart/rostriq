@@ -8,8 +8,8 @@ import { CompanyService } from '@/lib/company-service'
 import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CompanyJoinRequests } from '@/components/company-join-requests'
-import { Company } from '@/types/database'
+import { Company, UserProfile } from '@/types/database'
+import { CompanyFunctionsManager } from '@/components/company-functions-manager'
 
 interface User {
   id: string
@@ -19,6 +19,7 @@ interface User {
 
 function CompanySettingsContent() {
   const [user, setUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userCompany, setUserCompany] = useState<Company | null>(null)
@@ -39,6 +40,15 @@ function CompanySettingsContent() {
           email: currentUser.email || '',
           created_at: currentUser.created_at,
         })
+
+        // Get user profile from database
+        const userProfileData = await DatabaseService.getUserProfile(currentUser.id)
+        if (userProfileData) {
+          setUserProfile(userProfileData)
+        } else {
+          router.push('/role-selection')
+          return
+        }
 
         // Get role from database
         const userRole = await DatabaseService.getUserRole(currentUser.id)
@@ -97,7 +107,7 @@ function CompanySettingsContent() {
     )
   }
 
-  if (!user || !userCompany) {
+  if (!user || !userProfile || !userCompany) {
     return null
   }
 
@@ -131,9 +141,9 @@ function CompanySettingsContent() {
           </div>
 
           {/* Company Profile Management */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Company Profile Card - Takes 2 columns */}
-            <div className="lg:col-span-2">
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+            {/* Company Profile Card - Takes full width */}
+            <div className="lg:col-span-1">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -225,72 +235,21 @@ function CompanySettingsContent() {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Join Requests Card - Takes 1 column */}
-            <div className="lg:col-span-1">
-              <CompanyJoinRequests companyId={userCompany.id} />
-            </div>
           </div>
 
-          {/* Company Management Actions */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Team Management</CardTitle>
-                <CardDescription>Manage your team members and roles</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full" variant="outline">
-                  Invite Team Members
-                </Button>
-                <Button className="w-full" variant="outline">
-                  Manage Team Roles
-                </Button>
-                <Button 
-                  className="w-full" 
-                  variant="outline"
-                  onClick={() => router.push('/team')}
-                >
-                  View Team Directory
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Company Settings</CardTitle>
-                <CardDescription>Configure company preferences and policies</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full" variant="outline">
-                  Work Schedule Policies
-                </Button>
-                <Button className="w-full" variant="outline">
-                  Leave Policies
-                </Button>
-                <Button className="w-full" variant="outline">
-                  Notification Settings
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Account & Billing</CardTitle>
-                <CardDescription>Manage your subscription and billing</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full" variant="outline">
-                  Subscription Plan
-                </Button>
-                <Button className="w-full" variant="outline">
-                  Billing History
-                </Button>
-                <Button className="w-full" variant="outline">
-                  Payment Methods
-                </Button>
-              </CardContent>
-            </Card>
+          {/* Company Functions Management */}
+          <div className="space-y-6">
+            <div className="text-center space-y-4">
+              <h2 className="text-3xl font-bold tracking-tight">Company Functions</h2>
+              <p className="text-lg text-muted-foreground">
+                Create and manage functions that employees can be assigned to
+              </p>
+            </div>
+            
+            <CompanyFunctionsManager 
+              companyId={userCompany.id} 
+              currentUserId={userProfile.id} 
+            />
           </div>
 
 

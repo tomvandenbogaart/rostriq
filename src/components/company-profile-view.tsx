@@ -1,13 +1,21 @@
 'use client';
 
-import { Company } from '@/types/database';
+import { Company, CompanyMember } from '@/types/database';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { TeamDirectory } from './team-directory';
-import { PendingRequests } from './pending-requests';
 import { useEffect, useState } from 'react';
 import { CompanyService } from '@/lib/company-service';
+
+interface TeamMemberWithProfile extends CompanyMember {
+  user_profile: {
+    email: string;
+    first_name?: string;
+    last_name?: string;
+    avatar_url?: string;
+  };
+}
 
 interface CompanyProfileViewProps {
   company: Company;
@@ -15,12 +23,9 @@ interface CompanyProfileViewProps {
 
 export function CompanyProfileView({ company }: CompanyProfileViewProps) {
   const router = useRouter();
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberWithProfile[]>([]);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
   const [teamError, setTeamError] = useState<string | null>(null);
-  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
-  const [requestsError, setRequestsError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,37 +42,10 @@ export function CompanyProfileView({ company }: CompanyProfileViewProps) {
       }
       
       setIsLoadingTeam(false);
-
-      // Fetch pending requests
-      setIsLoadingRequests(true);
-      setRequestsError(null);
-      
-      const { requests, error: requestsError } = await CompanyService.getCompanyJoinRequests(company.id);
-      
-      if (requestsError) {
-        setRequestsError(requestsError);
-      } else {
-        setPendingRequests(requests || []);
-      }
-      
-      setIsLoadingRequests(false);
     };
 
     fetchData();
   }, [company.id]);
-
-  const handleRequestUpdate = () => {
-    // Refetch both team members and pending requests when a request is processed
-    const fetchData = async () => {
-      const { members } = await CompanyService.getCompanyTeamMembers(company.id);
-      const { requests } = await CompanyService.getCompanyJoinRequests(company.id);
-      
-      setTeamMembers(members || []);
-      setPendingRequests(requests || []);
-    };
-    
-    fetchData();
-  };
 
   const formatField = (value: string | undefined) => {
     return value || 'Not specified';
@@ -198,20 +176,15 @@ export function CompanyProfileView({ company }: CompanyProfileViewProps) {
         </CardContent>
       </Card>
 
-      {/* Pending Join Requests */}
-      <PendingRequests 
-        requests={pendingRequests}
-        companyId={company.id}
-        onRequestUpdate={handleRequestUpdate}
-        isLoading={isLoadingRequests}
-        error={requestsError}
-      />
-
       {/* Team Directory */}
       <TeamDirectory 
         members={teamMembers}
         isLoading={isLoadingTeam}
         error={teamError}
+        companyId={company.id}
+        currentUserId=""
+        viewOnly={true}
+        onTeamMembersChange={() => {}}
       />
 
       {/* Actions */}

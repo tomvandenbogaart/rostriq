@@ -1,7 +1,9 @@
 'use client'
 
-
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { CompanyFunctionsService } from '@/lib/company-functions-service'
+import type { CompanyFunctionView, EmployeeFunctionView } from '@/types/database'
 
 interface RosterShift {
   id: string
@@ -10,61 +12,102 @@ interface RosterShift {
   startTime: string
   endTime: string
   status: 'scheduled' | 'confirmed' | 'completed'
+  functionColor?: string
 }
 
-// Sample roster data for a single day
-const sampleDayShifts: RosterShift[] = [
-  {
-    id: '1',
-    employeeName: 'John Smith',
-    role: 'Taking Orders',
-    startTime: '09:00',
-    endTime: '17:00',
-    status: 'confirmed'
-  },
-  {
-    id: '1b',
-    employeeName: 'Emma Thompson',
-    role: 'Taking Orders',
-    startTime: '09:00',
-    endTime: '17:00',
-    status: 'confirmed'
-  },
-  {
-    id: '2',
-    employeeName: 'Sarah Johnson',
-    role: 'Dish Washing',
-    startTime: '10:00',
-    endTime: '18:00',
-    status: 'scheduled'
-  },
-  {
-    id: '3',
-    employeeName: 'Mike Davis',
-    role: 'Food Preparation',
-    startTime: '08:00',
-    endTime: '16:00',
-    status: 'confirmed'
-  },
-  {
-    id: '4',
-    employeeName: 'Lisa Wilson',
-    role: 'Cleaning',
-    startTime: '14:00',
-    endTime: '22:00',
-    status: 'scheduled'
+interface RosterDisplayProps {
+  companyId: string
+}
+
+export function RosterDisplay({ companyId }: RosterDisplayProps) {
+  const [functions, setFunctions] = useState<CompanyFunctionView[]>([])
+  const [employees, setEmployees] = useState<EmployeeFunctionView[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [shifts, setShifts] = useState<RosterShift[]>([])
+
+  useEffect(() => {
+    loadData()
+  }, [companyId])
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true)
+      const [functionsData, employeesData] = await Promise.all([
+        CompanyFunctionsService.getCompanyFunctions(companyId),
+        CompanyFunctionsService.getAllEmployeesWithFunctions(companyId),
+      ])
+      setFunctions(functionsData)
+      setEmployees(employeesData)
+      
+      // Generate sample shifts based on real functions and employees
+      generateSampleShifts(functionsData, employeesData)
+    } catch (error) {
+      console.error('Error loading roster data:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
-]
 
-// Generate time slots from 6 AM to 11 PM (18 hours)
-const timeSlots = Array.from({ length: 18 }, (_, i) => {
-  const hour = i + 6
-  return hour < 24 ? `${hour.toString().padStart(2, '0')}:00` : `${(hour - 24).toString().padStart(2, '0')}:00`
-})
+  const generateSampleShifts = (functionsData: CompanyFunctionView[], employeesData: EmployeeFunctionView[]) => {
+    if (functionsData.length === 0 || employeesData.length === 0) return
 
+    const sampleShifts: RosterShift[] = []
+    let shiftId = 1
 
+    // Generate shifts for each function
+    functionsData.forEach((func) => {
+      const employeesInFunction = employeesData.filter(emp => emp.function_id === func.id)
+      
+      if (employeesInFunction.length > 0) {
+        // Create shifts for employees in this function
+        employeesInFunction.forEach((employee, index) => {
+          const startHour = 6 + (index * 2) // Stagger start times
+          const endHour = startHour + 8 // 8-hour shifts
+          
+          sampleShifts.push({
+            id: shiftId.toString(),
+            employeeName: `${employee.first_name} ${employee.last_name}`,
+            role: func.name,
+            startTime: `${startHour.toString().padStart(2, '0')}:00`,
+            endTime: `${endHour.toString().padStart(2, '0')}:00`,
+            status: index % 2 === 0 ? 'confirmed' : 'scheduled',
+            functionColor: func.color,
+          })
+          shiftId++
+        })
+      }
+    })
 
-export function RosterDisplay() {
+    setShifts(sampleShifts)
+  }
+
+  // Generate time slots from 6 AM to 11 PM (18 hours)
+  const timeSlots = Array.from({ length: 18 }, (_, i) => {
+    const hour = i + 6
+    return hour < 24 ? `${hour.toString().padStart(2, '0')}:00` : `${(hour - 24).toString().padStart(2, '0')}:00`
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-muted-foreground">Loading roster...</div>
+      </div>
+    )
+  }
+
+  if (functions.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-muted-foreground mb-4">
+          No company functions created yet. Company owners need to create functions first.
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Functions like &quot;Dish Washing&quot;, &quot;Food Preparation&quot;, etc. need to be created before employees can be scheduled.
+        </div>
+      </div>
+    )
+  }
+
   const currentDate = new Date()
   const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' })
   const dateString = currentDate.toLocaleDateString('en-US', { 
@@ -74,7 +117,7 @@ export function RosterDisplay() {
   })
 
   // Group shifts by role
-  const shiftsByRole = sampleDayShifts.reduce((acc, shift) => {
+  const shiftsByRole = shifts.reduce((acc, shift) => {
     if (!acc[shift.role]) {
       acc[shift.role] = []
     }
@@ -90,7 +133,7 @@ export function RosterDisplay() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">{dayName}, {dateString}</h2>
-          <p className="text-sm text-muted-foreground">{sampleDayShifts.length} employees scheduled</p>
+          <p className="text-sm text-muted-foreground">{shifts.length} employees scheduled</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm">
@@ -126,14 +169,22 @@ export function RosterDisplay() {
                 <div className="w-20 flex-shrink-0 py-2 px-2 font-medium text-xs border-r border-border bg-muted/30">
                   Time
                 </div>
-                {uniqueRoles.map((role) => (
-                  <div 
-                    key={role}
-                    className="flex-1 py-1 px-2 text-center text-xs font-medium border-r border-border bg-muted/20"
-                  >
-                    <div className="font-medium">{role}</div>
-                  </div>
-                ))}
+                {uniqueRoles.map((role) => {
+                  const functionData = functions.find(f => f.name === role)
+                  return (
+                    <div 
+                      key={role}
+                      className="flex-1 py-1 px-2 text-center text-xs font-medium border-r border-border bg-muted/20"
+                    >
+                      <div className="font-medium">{role}</div>
+                      {functionData?.description && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {functionData.description}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Grid Container */}
@@ -159,6 +210,7 @@ export function RosterDisplay() {
                 {/* Shift Blocks - Positioned Absolutely */}
                 {uniqueRoles.map((role, roleIndex) => {
                   const roleShifts = shiftsByRole[role]
+                  const functionData = functions.find(f => f.name === role)
                   
                   return roleShifts.map((shift, employeeIndex) => {
                     const shiftStartHour = parseInt(shift.startTime.split(':')[0])
@@ -190,17 +242,21 @@ export function RosterDisplay() {
                     return (
                       <div
                         key={shift.id}
-                        className="absolute bg-primary/20 border border-primary/30 rounded-md shadow-sm flex items-center justify-center"
+                        className="absolute border rounded-md shadow-sm flex items-center justify-center"
                         style={{
                           top,
                           height,
                           left,
                           width: employeeWidth,
-                          zIndex: 10
+                          zIndex: 10,
+                          backgroundColor: `${shift.functionColor || '#3b82f6'}20`,
+                          borderColor: `${shift.functionColor || '#3b82f6'}30`,
                         }}
                       >
-                        <div className="text-xs font-medium text-primary text-center p-1">
-                          <div className="text-xs">{shift.employeeName}</div>
+                        <div className="text-xs font-medium text-center p-1">
+                          <div className="text-xs" style={{ color: shift.functionColor || '#3b82f6' }}>
+                            {shift.employeeName}
+                          </div>
                           <div className="text-xs opacity-75">
                             {shift.startTime} - {shift.endTime}
                           </div>
@@ -212,8 +268,6 @@ export function RosterDisplay() {
               </div>
             </div>
           </div>
-
-
     </div>
   )
 }

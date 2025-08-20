@@ -142,6 +142,7 @@ export function Header() {
                 >
                   Reports
                 </Link>
+
               </div>
             )}
           </nav>
@@ -306,6 +307,7 @@ export function Header() {
                   >
                     Reports
                   </Link>
+
                   <div className="border-t my-1" />
                   <Link
                     href="/account-settings"

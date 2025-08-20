@@ -8,7 +8,7 @@ import { CompanyService } from '@/lib/company-service'
 import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Company } from '@/types/database'
+import { Company, UserProfile } from '@/types/database'
 import { RosterDisplay } from '@/components/roster-display'
 import { X } from 'lucide-react'
 
@@ -20,6 +20,7 @@ interface User {
 
 function DashboardContent() {
   const [user, setUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userCompany, setUserCompany] = useState<Company | null>(null)
@@ -43,6 +44,15 @@ function DashboardContent() {
           email: currentUser.email || '',
           created_at: currentUser.created_at,
         })
+
+        // Get user profile from database
+        const userProfileData = await DatabaseService.getUserProfile(currentUser.id)
+        if (userProfileData) {
+          setUserProfile(userProfileData)
+        } else {
+          router.push('/role-selection')
+          return
+        }
 
         // Check for role in URL first, then database
         if (urlRole) {
@@ -106,7 +116,7 @@ function DashboardContent() {
     )
   }
 
-  if (!user) {
+  if (!user || !userProfile) {
     return null
   }
 
@@ -131,7 +141,20 @@ function DashboardContent() {
           </div>
 
           {/* Direct Roster Display */}
-          <RosterDisplay />
+          {userCompany ? (
+            <RosterDisplay companyId={userCompany.id} />
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <div className="text-muted-foreground mb-4">
+                  Company profile not set up yet
+                </div>
+                <Button onClick={() => router.push('/setup-company')}>
+                  Set Up Company
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Getting Started Card */}
           {!localStorage.getItem('gettingStartedDismissed') && (

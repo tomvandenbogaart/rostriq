@@ -4,9 +4,10 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CompanyService } from '@/lib/company-service';
+import { DatabaseService } from '@/lib/database';
 import { TeamPageContent } from '@/components/team-page-content';
 import { Header } from '@/components/header';
-import { Company } from '@/types/database';
+import { Company, UserProfile } from '@/types/database';
 
 interface User {
   id: string;
@@ -15,6 +16,7 @@ interface User {
 
 function TeamPageMain() {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [userCompany, setUserCompany] = useState<Company | null>(null);
   const router = useRouter();
@@ -33,6 +35,15 @@ function TeamPageMain() {
           id: currentUser.id,
           email: currentUser.email || '',
         });
+
+        // Get user profile from database
+        const userProfileData = await DatabaseService.getUserProfile(currentUser.id);
+        if (userProfileData) {
+          setUserProfile(userProfileData);
+        } else {
+          router.push('/role-selection');
+          return;
+        }
 
         // Fetch user's companies
         const { companies, error: companyError } = await CompanyService.getUserCompanies(currentUser.id);
@@ -74,7 +85,7 @@ function TeamPageMain() {
     );
   }
 
-  if (!user || !userCompany) {
+  if (!user || !userProfile || !userCompany) {
     return null; // Will redirect in useEffect
   }
 
@@ -88,7 +99,7 @@ function TeamPageMain() {
             <p className="text-muted-foreground">Manage your team members and join requests</p>
           </div>
           
-          <TeamPageContent company={userCompany} />
+          <TeamPageContent company={userCompany} currentUserId={userProfile.id} />
         </div>
       </main>
     </>
