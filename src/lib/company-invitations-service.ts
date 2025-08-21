@@ -20,14 +20,38 @@ export class CompanyInvitationsService {
     message?: string,
     expiresInDays: number = 7,
     companyName?: string,
-    inviterName?: string
+    inviterName?: string,
+    invitedBy?: string
   ): Promise<{ data: CompanyInvitation | null; error: Error | null }> {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
+    // Get current user's profile ID if not provided
+    let inviterProfileId = invitedBy;
+    if (!inviterProfileId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return { data: null, error: new Error('User not authenticated') };
+      }
+
+      // Get user profile ID
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError || !userProfile) {
+        return { data: null, error: new Error('Unable to get user profile') };
+      }
+
+      inviterProfileId = userProfile.id;
+    }
+
     const invitationData: CompanyInvitationInsert = {
       company_id: companyId,
       invited_email: invitedEmail.toLowerCase().trim(),
+      invited_by: inviterProfileId,
       role,
       message,
       expires_at: expiresAt.toISOString(),

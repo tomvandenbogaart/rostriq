@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, DailySchedule } from '@/types/database';
+import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, DailySchedule, CompanyInvitation } from '@/types/database';
 
 export class CompanyService {
   // Create a new company
@@ -273,7 +273,44 @@ export class CompanyService {
         return { members: [], error: membersError.message };
       }
 
+      // Get pending invitations
+      const { data: pendingInvitations, error: invitationsError } = await supabase
+        .from('company_invitations')
+        .select('*')
+        .eq('company_id', companyId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true });
+
+      if (invitationsError) {
+        console.error('Error fetching pending invitations:', invitationsError);
+        // Continue without invitations if there's an error
+      }
+
       if (!membersData || membersData.length === 0) {
+        // If no members, just return invitations as pending members
+        if (pendingInvitations && pendingInvitations.length > 0) {
+          const pendingMembers = pendingInvitations.map(invitation => ({
+            id: invitation.id,
+            company_id: invitation.company_id,
+            user_id: `invitation_${invitation.id}`, // Use a special ID for invitations
+            role: invitation.role,
+            permissions: {},
+            joined_at: invitation.created_at,
+            is_active: false, // Mark as inactive since they haven't joined yet
+            is_pending_invitation: true, // Flag to identify pending invitations
+            invitation_data: invitation // Store invitation data for display
+          } as CompanyMember & { is_pending_invitation: boolean; invitation_data: CompanyInvitation }));
+
+          return { members: pendingMembers.map(member => ({
+            ...member,
+            user_profile: {
+              email: member.invitation_data.invited_email,
+              first_name: undefined,
+              last_name: undefined,
+              avatar_url: undefined
+            }
+          })), error: null };
+        }
         return { members: [], error: null };
       }
 
@@ -289,7 +326,7 @@ export class CompanyService {
         return { members: [], error: profilesError.message };
       }
 
-      // Combine the data
+      // Combine the data for active members
       const membersWithProfiles = membersData.map(member => {
         const userProfile = userProfiles?.find(profile => profile.id === member.user_id);
 
@@ -316,10 +353,76 @@ export class CompanyService {
         }
       });
 
+      // Add pending invitations as pending members
+      if (pendingInvitations && pendingInvitations.length > 0) {
+        const pendingMembers = pendingInvitations.map(invitation => ({
+          id: invitation.id,
+          company_id: invitation.company_id,
+          user_id: `invitation_${invitation.id}`, // Use a special ID for invitations
+          role: invitation.role,
+          permissions: {},
+          joined_at: invitation.created_at,
+          is_active: false, // Mark as inactive since they haven't joined yet
+          is_pending_invitation: true, // Flag to identify pending invitations
+          invitation_data: invitation // Store invitation data for display
+        } as CompanyMember & { is_pending_invitation: boolean; invitation_data: CompanyInvitation }));
+
+        const pendingMembersWithProfiles = pendingMembers.map(member => ({
+          ...member,
+          user_profile: {
+            email: member.invitation_data.invited_email,
+            first_name: undefined,
+            last_name: undefined,
+            avatar_url: undefined
+          }
+        }));
+
+        // Combine active members and pending invitations
+        return { members: [...membersWithProfiles, ...pendingMembersWithProfiles], error: null };
+      }
+
       return { members: membersWithProfiles, error: null };
     } catch (error) {
       console.error('Error in getCompanyTeamMembers:', error);
       return { members: [], error: 'Failed to fetch team members' };
+    }
+  }
+
+  // Cancel a pending invitation
+  static async cancelInvitation(companyId: string, invitationId: string, cancelledByUserProfileId: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      // Check if the user trying to cancel is an owner or admin
+      const { data: currentUserMember, error: memberCheckError } = await supabase
+        .from('company_members')
+        .select('role')
+        .eq('company_id', companyId)
+        .eq('user_id', cancelledByUserProfileId)
+        .eq('is_active', true)
+        .single();
+
+      if (memberCheckError || !currentUserMember) {
+        return { success: false, error: 'User not found in company' };
+      }
+
+      if (currentUserMember.role !== 'owner' && currentUserMember.role !== 'admin') {
+        return { success: false, error: 'Only owners and admins can cancel invitations' };
+      }
+
+      // Cancel the invitation by setting status to expired
+      const { error: cancelError } = await supabase
+        .from('company_invitations')
+        .update({ status: 'expired' })
+        .eq('id', invitationId)
+        .eq('company_id', companyId);
+
+      if (cancelError) {
+        return { success: false, error: cancelError.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Error in cancelInvitation:', error);
+      return { success: false, error: 'Failed to cancel invitation' };
     }
   }
 

@@ -67,6 +67,9 @@ export interface CompanyMember {
   working_schedule_notes?: string;
   daily_schedule?: DailySchedule;
   weekly_hours?: number;
+  // Fields for pending invitations
+  is_pending_invitation?: boolean;
+  invitation_data?: CompanyInvitation;
 }
 
 export interface CompanyInvitation {

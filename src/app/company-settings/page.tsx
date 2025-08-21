@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Company, UserProfile } from '@/types/database'
 import { CompanyFunctionsManager } from '@/components/company-functions-manager'
-import { CompanyInvitationsManager } from '@/components/company-invitations-manager'
 
 interface User {
   id: string
@@ -226,6 +225,13 @@ function CompanySettingsContent() {
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
+                    onClick={() => router.push('/team')}
+                  >
+                    Manage Team
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
                     onClick={() => router.push('/dashboard')}
                   >
                     ← Back to Dashboard
@@ -236,13 +242,6 @@ function CompanySettingsContent() {
                     onClick={() => router.push('/company-profile')}
                   >
                     View Company Profile
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start"
-                    onClick={() => router.push('/team')}
-                  >
-                    Manage Team
                   </Button>
                 </CardContent>
               </Card>
@@ -262,18 +261,7 @@ function CompanySettingsContent() {
             />
           </div>
 
-          {/* Company Invitations Management */}
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Team Invitations</h2>
-              <p className="text-muted-foreground">Invite new members to join your company with secure, expiring links</p>
-            </div>
-            
-            <CompanyInvitationsManager 
-              companyId={userCompany.id} 
-              company={userCompany} 
-            />
-          </div>
+
         </div>
       </main>
     </>

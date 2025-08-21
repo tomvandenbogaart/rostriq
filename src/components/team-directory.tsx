@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { CompanyFunctionsService } from '@/lib/company-functions-service';
 import { CompanyService } from '@/lib/company-service';
 import { WorkingScheduleEditor } from '@/components/working-schedule-editor';
-import { Pencil, Search } from 'lucide-react';
+import { Pencil, Search, Clock } from 'lucide-react';
 import type { CompanyFunctionView, EmployeeFunctionView, CreateCompanyFunctionAssignment, DailySchedule } from '@/types/database';
 
 interface TeamMemberWithProfile extends CompanyMember {
@@ -305,6 +305,23 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
     }
   };
 
+  const handleCancelInvitation = async (invitationId: string) => {
+    if (!confirm('Are you sure you want to cancel this invitation?')) {
+      return;
+    }
+
+    try {
+      await CompanyService.cancelInvitation(companyId, invitationId, currentUserId);
+      await loadFunctions(); // Refresh functions to reflect invitation cancellation
+      if (onTeamMembersChange) {
+        onTeamMembersChange();
+      }
+    } catch (error) {
+      console.error('Error canceling invitation:', error);
+      alert('Failed to cancel invitation. Please try again.');
+    }
+  };
+
   const getMemberFunctions = (userId: string) => {
     return employeeFunctions.filter(ef => ef.user_id === userId);
   };
@@ -325,7 +342,11 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
            role.includes(query);
   });
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (role: string, isPending: boolean = false) => {
+    if (isPending) {
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    }
+    
     switch (role) {
       case 'owner':
         return 'bg-purple-100 text-purple-800 border-purple-200';
@@ -488,7 +509,7 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
       <CardHeader>
         <CardTitle>Team Directory</CardTitle>
         <CardDescription>
-          {members.length} team member{members.length !== 1 ? 's' : ''} • Manage roles and function assignments
+          {members.length} team member{members.length !== 1 ? 's' : ''} • Manage roles, function assignments, and pending invitations
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -527,10 +548,10 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
             </thead>
             <tbody>
               {filteredMembers.map((member) => {
-                const memberFunctions = getMemberFunctions(member.user_id);
+                const memberFunctions = member.is_pending_invitation ? [] : getMemberFunctions(member.user_id);
                 
                 return (
-                  <tr key={member.id} className="border-b border-border/50 hover:bg-muted/30">
+                  <tr key={member.id} className="border-b border-border/50">
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-3">
                         <Avatar className="w-10 h-10">
@@ -538,8 +559,16 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                             src={member.user_profile.avatar_url} 
                             alt={getDisplayName(member.user_profile.email, member.user_profile.first_name, member.user_profile.last_name)} 
                           />
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {getInitials(member.user_profile.first_name, member.user_profile.last_name)}
+                          <AvatarFallback className={`${
+                            member.is_pending_invitation 
+                              ? 'bg-yellow-100 text-yellow-700' 
+                              : 'bg-primary/10 text-primary'
+                          }`}>
+                            {member.is_pending_invitation ? (
+                              <Clock className="h-5 w-5" />
+                            ) : (
+                              getInitials(member.user_profile.first_name, member.user_profile.last_name)
+                            )}
                           </AvatarFallback>
                         </Avatar>
                         <div>
@@ -549,6 +578,7 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                           <div className="text-sm text-muted-foreground">
                             {member.user_profile.email}
                           </div>
+
                         </div>
                       </div>
                     </td>
@@ -556,15 +586,29 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                     <td className="py-4 px-4">
                       <Badge 
                         variant="outline" 
-                        className={`${getRoleColor(member.role)} border`}
+                        className={`${getRoleColor(member.role, member.is_pending_invitation)} border`}
                       >
-                        {getRoleLabel(member.role)}
+                        {member.is_pending_invitation ? (
+                          member.invitation_data ? (
+                            `Invited ${new Date(member.invitation_data.created_at).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}`
+                          ) : (
+                            'Invited'
+                          )
+                        ) : (
+                          getRoleLabel(member.role)
+                        )}
                       </Badge>
                     </td>
                     
                     <td className="py-4 px-4">
                       <div className="space-y-2">
-                        {!viewOnly ? (
+                        {member.is_pending_invitation ? (
+                          <span className="text-sm text-muted-foreground">Pending</span>
+                        ) : !viewOnly ? (
                           <select
                             key={`${member.user_id}-${memberFunctions.length > 0 ? memberFunctions[0].function_id : 'none'}`}
                             className="border rounded px-2 py-1 text-sm w-full"
@@ -618,9 +662,13 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                     <td className="py-4 px-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          {formatWorkingSchedule(member)}
+                          {member.is_pending_invitation ? (
+                            <span className="text-sm text-muted-foreground">Pending</span>
+                          ) : (
+                            formatWorkingSchedule(member)
+                          )}
                         </div>
-                        {!viewOnly && (
+                        {!viewOnly && !member.is_pending_invitation && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -637,28 +685,46 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                     
                     <td className="py-4 px-4">
                       <span className="text-sm text-muted-foreground">
-                        {new Date(member.joined_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
+                        {member.is_pending_invitation ? (
+                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                            Pending
+                          </Badge>
+                        ) : (
+                          new Date(member.joined_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })
+                        )}
                       </span>
                     </td>
                     
                     {!viewOnly && (
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleRemoveTeamMember(
-                              member.user_id, 
-                              getDisplayName(member.user_profile.email, member.user_profile.first_name, member.user_profile.last_name)
-                            )}
-                            className="text-xs"
-                          >
-                            Remove
-                          </Button>
+                          {member.is_pending_invitation ? (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleCancelInvitation(member.invitation_data?.id || '')}
+                              className="text-xs"
+                              disabled={!member.invitation_data?.id}
+                            >
+                              Cancel Invitation
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleRemoveTeamMember(
+                                member.user_id, 
+                                getDisplayName(member.user_profile.email, member.user_profile.first_name, member.user_profile.last_name)
+                              )}
+                              className="text-xs"
+                            >
+                              Remove
+                            </Button>
+                          )}
                         </div>
                       </td>
                     )}

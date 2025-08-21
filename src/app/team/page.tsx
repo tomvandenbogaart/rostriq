@@ -150,6 +150,7 @@ function TeamPageMain() {
             companyId={userCompany.id}
             currentUserId={userProfile.id}
             onTeamMembersChange={fetchTeamMembers}
+            company={userCompany}
           />
         </div>
       </main>
