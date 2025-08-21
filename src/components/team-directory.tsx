@@ -332,6 +332,8 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
     return employeeFunctions.filter(ef => ef.user_id === userId);
   };
 
+
+
   // Filter members based on search query
   const filteredMembers = members.filter(member => {
     if (!searchQuery.trim()) return true;
@@ -715,6 +717,7 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                               onClick={() => handleCancelInvitation(member.invitation_data?.id || '')}
                               className="text-xs"
                               disabled={!member.invitation_data?.id}
+                              title="Cancel invitation"
                             >
                               Cancel Invitation
                             </Button>

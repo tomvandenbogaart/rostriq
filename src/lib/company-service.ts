@@ -22,6 +22,7 @@ interface TeamMemberRPCResult {
   user_first_name?: string;
   user_last_name?: string;
   user_avatar_url?: string;
+  invitation_data?: unknown; // JSONB data for pending invitations - will be cast to CompanyInvitation
 }
 
 export class CompanyService {
@@ -310,6 +311,7 @@ export class CompanyService {
         daily_schedule: member.daily_schedule,
         weekly_hours: member.weekly_hours,
         is_pending_invitation: member.is_pending_invitation,
+        invitation_data: member.invitation_data, // Include invitation data for pending invitations
         user_profile: {
           email: member.user_email || 'No email available',
           first_name: member.user_first_name,
