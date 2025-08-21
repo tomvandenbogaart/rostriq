@@ -18,7 +18,7 @@ export default function JoinPage() {
   const token = searchParams.get('token');
   
   // Custom hooks for business logic
-  const { invitation, company, isLoading, error, isExpired, refreshInvitation } = useCompanyInvitation(token);
+  const { invitation, company, isLoading, error, isExpired } = useCompanyInvitation(token);
   const { isAuthenticated, userEmail, refreshAuth } = useAuthStatus();
   const { isJoining, error: joinError, hasAutoAccepted, isAutoAccepting, joinCompany } = useCompanyJoin(
     invitation,

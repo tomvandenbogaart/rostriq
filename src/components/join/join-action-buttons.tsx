@@ -25,11 +25,6 @@ export function JoinActionButtons({
 }: JoinActionButtonsProps) {
   const router = useRouter();
 
-  const handleSignIn = () => {
-    const prefEmail = invitation?.invited_email || '';
-    router.push(`/signin?token=${invitation.invitation_token}&email=${encodeURIComponent(prefEmail)}&redirect=/join?token=${invitation.invitation_token}`);
-  };
-
   const handleSignUp = () => {
     const prefEmail = invitation?.invited_email || '';
     router.push(`/signup?token=${invitation.invitation_token}&email=${encodeURIComponent(prefEmail)}&redirect=/join?token=${invitation.invitation_token}`);

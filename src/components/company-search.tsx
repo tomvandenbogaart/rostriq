@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,7 +30,7 @@ export function CompanySearch({ onCompanySelected, onBack }: CompanySearchProps)
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const searchCompanies = async () => {
+  const searchCompanies = useCallback(async () => {
     if (searchTerm.trim().length < 2) return
 
     setIsSearching(true)
@@ -43,13 +43,13 @@ export function CompanySearch({ onCompanySelected, onBack }: CompanySearchProps)
       } else {
         setCompanies(searchResults)
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to search companies')
       setCompanies([])
     } finally {
       setIsSearching(false)
     }
-  }
+  }, [searchTerm])
 
   useEffect(() => {
     if (searchTerm.trim().length >= 2) {
@@ -70,7 +70,7 @@ export function CompanySearch({ onCompanySelected, onBack }: CompanySearchProps)
         clearTimeout(searchTimeoutRef.current)
       }
     }
-  }, [searchTerm])
+  }, [searchTerm, searchCompanies])
 
   const handleJoinCompany = async (company: Company) => {
     setIsJoining(true)
@@ -85,7 +85,7 @@ export function CompanySearch({ onCompanySelected, onBack }: CompanySearchProps)
       }
 
       // Create company invitation instead of join request
-      const { data: invitation, error } = await supabase
+      const { error } = await supabase
         .from('company_invitations')
         .insert({
           company_id: company.id,
@@ -105,7 +105,7 @@ export function CompanySearch({ onCompanySelected, onBack }: CompanySearchProps)
         toast.success(`Invitation request sent to ${company.name}! They will review your request.`)
         onCompanySelected(company)
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred while joining the company')
     } finally {
       setIsJoining(false)

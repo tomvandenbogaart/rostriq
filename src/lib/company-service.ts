@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, DailySchedule, CompanyInvitation } from '@/types/database';
+import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, DailySchedule } from '@/types/database';
 
 // Type for the RPC function result
 interface TeamMemberRPCResult {
@@ -68,7 +68,7 @@ export class CompanyService {
       }
 
       return { company, error: null };
-    } catch (error) {
+    } catch {
       return { company: null, error: 'Failed to create company' };
     }
   }
@@ -88,7 +88,7 @@ export class CompanyService {
       }
 
       return { company, error: null };
-    } catch (error) {
+    } catch {
       return { company: null, error: 'Failed to fetch company' };
     }
   }
@@ -127,7 +127,7 @@ export class CompanyService {
         .filter(company => company && company.is_active);
 
       return { companies, error: null };
-    } catch (error) {
+    } catch {
       return { companies: [], error: 'Failed to fetch user companies' };
     }
   }
@@ -147,7 +147,7 @@ export class CompanyService {
       }
 
       return { company, error: null };
-    } catch (error) {
+    } catch {
       return { company: null, error: 'Failed to update company' };
     }
   }
@@ -165,7 +165,7 @@ export class CompanyService {
       }
 
       return { success: true, error: null };
-    } catch (error) {
+    } catch {
       return { success: false, error: 'Failed to delete company' };
     }
   }
@@ -197,7 +197,7 @@ export class CompanyService {
       }
 
       return { isOwner: member.role === 'owner', error: null };
-    } catch (error) {
+    } catch {
       return { isOwner: false, error: 'Failed to check ownership' };
     }
   }
@@ -229,7 +229,7 @@ export class CompanyService {
       }
 
       return { canView: member.role === 'owner' || member.role === 'admin', error: null };
-    } catch (error) {
+    } catch {
       return { canView: false, error: 'Failed to check permissions' };
     }
   }
@@ -248,7 +248,7 @@ export class CompanyService {
       }
 
       return { members, error: null };
-    } catch (error) {
+    } catch {
       return { members: [], error: 'Failed to fetch company members' };
     }
   }
@@ -268,7 +268,7 @@ export class CompanyService {
       }
 
       return { companies, error: null };
-    } catch (error) {
+    } catch {
       return { companies: [], error: 'Failed to search companies' };
     }
   }

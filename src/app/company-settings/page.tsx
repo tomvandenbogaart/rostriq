@@ -2,8 +2,8 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { DatabaseService } from '@/lib/database'
 import { CompanyService } from '@/lib/company-service'
 import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,7 +21,6 @@ function CompanySettingsContent() {
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [userRole, setUserRole] = useState<string | null>(null)
   const [userCompany, setUserCompany] = useState<Company | null>(null)
   const router = useRouter()
 
@@ -55,7 +54,6 @@ function CompanySettingsContent() {
         }
 
         setUserProfile(userProfileData)
-        setUserRole(userProfileData.role)
 
         // Only company owners should access this page
         if (userProfileData.role !== 'owner') {
@@ -81,15 +79,6 @@ function CompanySettingsContent() {
 
     getUser()
   }, [router])
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut()
-      router.push('/')
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
-  }
 
   if (loading) {
     return (
@@ -142,9 +131,11 @@ function CompanySettingsContent() {
                     {userCompany.logo_url && (
                       <div className="flex-shrink-0">
                         <div className="w-24 h-24 flex items-center justify-center overflow-hidden">
-                          <img 
+                          <Image 
                             src={userCompany.logo_url} 
                             alt={`${userCompany.name} logo`}
+                            width={96}
+                            height={96}
                             className="w-full h-full object-contain"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
