@@ -10,6 +10,13 @@ import { Search, Building2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
+// Helper function to generate secure tokens (same as CompanyInvitationsService)
+function generateSecureToken(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
 interface CompanySearchProps {
   onCompanySelected: (company: Company) => void
   onBack: () => void
@@ -84,7 +91,7 @@ export function CompanySearch({ onCompanySelected, onBack }: CompanySearchProps)
           company_id: company.id,
           invited_email: user.email,
           invited_by: user.id,
-          invitation_token: crypto.randomUUID(),
+          invitation_token: generateSecureToken(),
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
           status: 'pending',
           role: 'member'

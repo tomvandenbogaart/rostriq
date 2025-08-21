@@ -46,6 +46,16 @@ export function SignUpForm() {
         }
       }
       
+      // If we still don't have a token, try to extract it from the redirect path
+      if (!invitationToken && redirect) {
+        const tokenMatch = redirect.match(/token=([^&]+)/)
+        if (tokenMatch) {
+          const extractedToken = tokenMatch[1]
+          setInvitationToken(extractedToken)
+          console.log('Extracted token from redirect path:', extractedToken)
+        }
+      }
+      
       if (redirect) setRedirectPath(redirect)
     } catch (error) {
       console.error('Error parsing URL parameters:', error)
