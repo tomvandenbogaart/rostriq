@@ -112,7 +112,13 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
     }
   };
 
-  const handleRemoveTeamMember = async (userId: string, memberName: string) => {
+  const handleRemoveTeamMember = async (userId: string, memberName: string, memberRole: string) => {
+    // Prevent owners from being removed
+    if (memberRole === 'owner') {
+      alert('Company owners cannot be removed from the team. Please contact support if you need to transfer ownership.');
+      return;
+    }
+
     if (!confirm(`Are you sure you want to remove ${memberName} from the team? This action cannot be undone.`)) {
       return;
     }
@@ -718,9 +724,12 @@ export function TeamDirectory({ members, isLoading, error, companyId, currentUse
                               variant="destructive"
                               onClick={() => handleRemoveTeamMember(
                                 member.user_id, 
-                                getDisplayName(member.user_profile.email, member.user_profile.first_name, member.user_profile.last_name)
+                                getDisplayName(member.user_profile.email, member.user_profile.first_name, member.user_profile.last_name),
+                                member.role
                               )}
                               className="text-xs"
+                              disabled={member.role === 'owner'}
+                              title={member.role === 'owner' ? 'Company owners cannot be removed' : 'Remove team member'}
                             >
                               Remove
                             </Button>
