@@ -51,7 +51,7 @@ export default function SetupCompanyPage() {
 
         // Only allow owners to create companies
         if (userProfile?.role !== 'owner') {
-          router.push('/role-selection');
+          router.push('/dashboard');
           return;
         }
 
@@ -84,7 +84,7 @@ export default function SetupCompanyPage() {
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <button 
-            onClick={() => router.push('/role-selection')}
+            onClick={() => router.push('/dashboard')}
             className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
           >
             Go Back

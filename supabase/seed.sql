@@ -4,3 +4,19 @@
 
 -- Companies and users are created through the user-seed.js script
 -- This file is kept for any additional seed data that might be needed
+
+-- Company functions seed data (these will be created by user-seed.js, but kept here as reference)
+-- The user-seed.js script will create these functions automatically when setting up the company
+-- 
+-- Common functions for a software company:
+-- - Software Development
+-- - Frontend Development  
+-- - Backend Development
+-- - DevOps & Infrastructure
+-- - Quality Assurance
+-- - Project Management
+-- - Design & UX
+-- - Business Analysis
+--
+-- These functions are created with proper authentication and company ownership
+-- through the user-seed.js script to ensure proper RLS policies are respected

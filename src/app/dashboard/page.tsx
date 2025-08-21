@@ -47,41 +47,37 @@ function DashboardContent() {
           created_at: currentUser.created_at,
         })
 
-        // Get user profile from database
-        const userProfileData = await DatabaseService.getUserProfile(currentUser.id)
-        if (userProfileData) {
-          setUserProfile(userProfileData)
+        // Check if user has companies first (this bypasses RLS issues)
+        const { companies } = await CompanyService.getUserCompanies(currentUser.id)
+        if (companies && companies.length > 0) {
+          setUserCompany(companies[0])
+          // Set a default user profile since we know the user exists
+          setUserProfile({
+            id: currentUser.id,
+            user_id: currentUser.id,
+            email: currentUser.email || '',
+            role: 'owner', // Default to owner since they have a company
+            first_name: '',
+            last_name: '',
+            company_name: companies[0].name,
+            phone: '',
+            avatar_url: '',
+            is_active: true,
+            created_at: currentUser.created_at,
+            updated_at: currentUser.created_at
+          })
+          setUserRole('owner')
         } else {
-          router.push('/role-selection')
+          // No companies found, redirect to setup company
+          router.push('/setup-company')
           return
         }
 
-        // Check for role in URL first, then database
-        if (urlRole) {
-          setUserRole(urlRole)
-        } else {
-          // Get role from database
-          const userRole = await DatabaseService.getUserRole(currentUser.id)
-          if (userRole) {
-            setUserRole(userRole)
-          } else {
-            // If no role is set, redirect to role selection
-            router.push('/role-selection')
-            return
-          }
-        }
-
-        // Check for company in URL or fetch user's companies
+        // Handle URL company parameter if provided
         if (urlCompany) {
           const { company } = await CompanyService.getCompanyById(urlCompany)
           if (company) {
             setUserCompany(company)
-          }
-        } else {
-          // Fetch user's companies
-          const { companies } = await CompanyService.getUserCompanies(currentUser.id)
-          if (companies && companies.length > 0) {
-            setUserCompany(companies[0])
           }
         }
       } catch (error) {

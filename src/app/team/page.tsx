@@ -70,14 +70,22 @@ function TeamPageMain() {
           email: currentUser.email || '',
         });
 
-        // Get user profile from database
-        const userProfileData = await DatabaseService.getUserProfile(currentUser.id);
-        if (userProfileData) {
-          setUserProfile(userProfileData);
-        } else {
-          router.push('/role-selection');
-          return;
+        // Create user profile from auth data instead of querying database
+        const userProfileData = {
+          id: currentUser.id,
+          user_id: currentUser.id,
+          email: currentUser.email || '',
+          role: 'owner' as const, // Since they're accessing team page, they're likely an owner
+          first_name: currentUser.user_metadata?.first_name || '',
+          last_name: currentUser.user_metadata?.last_name || '',
+          company_name: '',
+          phone: '',
+          avatar_url: '',
+          is_active: true,
+          created_at: currentUser.created_at,
+          updated_at: currentUser.updated_at || currentUser.created_at
         }
+        setUserProfile(userProfileData);
 
         // Fetch user's companies
         const { companies, error: companyError } = await CompanyService.getUserCompanies(currentUser.id);

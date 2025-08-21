@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Company, UserProfile } from '@/types/database'
 import { CompanyFunctionsManager } from '@/components/company-functions-manager'
+import { CompanyInvitationsManager } from '@/components/company-invitations-manager'
 
 interface User {
   id: string
@@ -41,26 +42,24 @@ function CompanySettingsContent() {
           created_at: currentUser.created_at,
         })
 
-        // Get user profile from database
-        const userProfileData = await DatabaseService.getUserProfile(currentUser.id)
-        if (userProfileData) {
-          setUserProfile(userProfileData)
-        } else {
-          router.push('/role-selection')
+        // Fetch the actual user profile from database
+        const { data: userProfileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .single()
+
+        if (profileError || !userProfileData) {
+          console.error('Error fetching user profile:', profileError)
+          router.push('/signin')
           return
         }
 
-        // Get role from database
-        const userRole = await DatabaseService.getUserRole(currentUser.id)
-        if (userRole) {
-          setUserRole(userRole)
-        } else {
-          router.push('/role-selection')
-          return
-        }
+        setUserProfile(userProfileData)
+        setUserRole(userProfileData.role)
 
         // Only company owners should access this page
-        if (userRole !== 'owner') {
+        if (userProfileData.role !== 'owner') {
           router.push('/dashboard')
           return
         }
@@ -143,11 +142,11 @@ function CompanySettingsContent() {
                     {/* Company Logo - Left Side */}
                     {userCompany.logo_url && (
                       <div className="flex-shrink-0">
-                        <div className="w-24 h-24 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
+                        <div className="w-24 h-24 flex items-center justify-center overflow-hidden">
                           <img 
                             src={userCompany.logo_url} 
                             alt={`${userCompany.name} logo`}
-                            className="w-full h-full object-contain p-2"
+                            className="w-full h-full object-contain"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
@@ -260,6 +259,19 @@ function CompanySettingsContent() {
             <CompanyFunctionsManager 
               companyId={userCompany.id} 
               currentUserId={userProfile.id} 
+            />
+          </div>
+
+          {/* Company Invitations Management */}
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Team Invitations</h2>
+              <p className="text-muted-foreground">Invite new members to join your company with secure, expiring links</p>
+            </div>
+            
+            <CompanyInvitationsManager 
+              companyId={userCompany.id} 
+              company={userCompany} 
             />
           </div>
         </div>

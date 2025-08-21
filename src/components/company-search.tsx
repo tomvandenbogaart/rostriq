@@ -77,13 +77,26 @@ export function CompanySearch({ onCompanySelected, onBack }: CompanySearchProps)
         return
       }
 
-      const { success, error } = await CompanyService.sendJoinRequest(company.id, user.id)
+      // Create company invitation instead of join request
+      const { data: invitation, error } = await supabase
+        .from('company_invitations')
+        .insert({
+          company_id: company.id,
+          invited_email: user.email,
+          invited_by: user.id,
+          invitation_token: crypto.randomUUID(),
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+          status: 'pending',
+          role: 'member'
+        })
+        .select()
+        .single()
       
-      if (success) {
-        toast.success(`Join request sent to ${company.name}! They will review your request.`)
-        onCompanySelected(company)
+      if (error) {
+        toast.error('Failed to send invitation request')
       } else {
-        toast.error(error || 'Failed to send join request')
+        toast.success(`Invitation request sent to ${company.name}! They will review your request.`)
+        onCompanySelected(company)
       }
     } catch (error) {
       toast.error('An error occurred while joining the company')

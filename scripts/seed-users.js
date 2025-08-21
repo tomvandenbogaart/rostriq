@@ -1,5 +1,5 @@
 // Seed script to create test users using Supabase client
-// This uses the proper Supabase auth flow
+// This uses the proper Supabase auth flow and the new company invitations system
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -9,6 +9,13 @@ const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+// Helper function to generate secure invitation tokens
+function generateSecureToken() {
+  const array = new Uint8Array(32)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
+}
 
 async function seedUsers() {
   try {
@@ -28,109 +35,19 @@ async function seedUsers() {
       }
     })
 
-    if (tomError) {
+    if (tomError && tomError.code !== 'user_already_exists') {
       console.error('Error creating Tom:', tomError)
       return
     }
 
-    console.log('✅ Created Tom:', tomUser.user?.email)
-    console.log('User ID:', tomUser.user?.id)
-
-    // Create Boga (join request sender)
-    console.log('Creating Boga...')
-    const { data: bogaUser, error: bogaError } = await supabase.auth.signUp({
-      email: 'bogatom98@gmail.com',
-      password: 'password123',
-      options: {
-        data: {
-          first_name: 'Boga',
-          last_name: 'Tom',
-          role: 'user'
-        }
-      }
-    })
-
-    if (bogaError) {
-      console.error('Error creating Boga:', bogaError)
-      return
+    if (tomError && tomError.code === 'user_already_exists') {
+      console.log('ℹ️  Tom already exists: tom@softomic.nl')
+    } else {
+      console.log('✅ Created Tom:', tomUser.user?.email)
+      console.log('User ID:', tomUser.user?.id)
     }
 
-    console.log('✅ Created Boga:', bogaUser.user?.email)
-    console.log('User ID:', bogaUser.user?.id)
-
-    // Create additional test users for more join requests
-    const additionalUsers = [
-      {
-        email: 'sarah.johnson@email.com',
-        password: 'password123',
-        firstName: 'Sarah',
-        lastName: 'Johnson',
-        role: 'user'
-      },
-      {
-        email: 'mike.chen@email.com',
-        password: 'password123',
-        firstName: 'Mike',
-        lastName: 'Chen',
-        role: 'user'
-      },
-      {
-        email: 'emma.wilson@email.com',
-        password: 'password123',
-        firstName: 'Emma',
-        lastName: 'Wilson',
-        role: 'user'
-      },
-      {
-        email: 'alex.rodriguez@email.com',
-        password: 'password123',
-        firstName: 'Alex',
-        lastName: 'Rodriguez',
-        role: 'user'
-      },
-      {
-        email: 'lisa.thompson@email.com',
-        password: 'password123',
-        firstName: 'Lisa',
-        lastName: 'Thompson',
-        role: 'user'
-      }
-    ]
-
-    console.log('Creating additional test users...')
-    const createdUsers = []
-
-    for (const userData of additionalUsers) {
-      try {
-        const { data: user, error } = await supabase.auth.signUp({
-          email: userData.email,
-          password: userData.password,
-          options: {
-            data: {
-              first_name: userData.firstName,
-              last_name: userData.lastName,
-              role: userData.role
-            }
-          }
-        })
-
-        if (error && error.code !== 'user_already_exists') {
-          console.error(`Error creating ${userData.firstName}:`, error.message)
-          continue
-        }
-
-        if (error && error.code === 'user_already_exists') {
-          console.log(`ℹ️  ${userData.firstName} already exists:`, userData.email)
-        } else {
-          console.log(`✅ Created ${userData.firstName}:`, user.user?.email)
-        }
-        
-        createdUsers.push({ ...userData, email: userData.email })
-      } catch (error) {
-        console.log(`ℹ️  ${userData.firstName} creation skipped:`, error.message)
-        createdUsers.push({ ...userData, email: userData.email })
-      }
-    }
+    console.log('✅ Only creating Tom and company setup for testing')
 
     // Wait a moment for user profiles to be created by trigger
     console.log('Waiting for database trigger to create user profiles...')
@@ -150,23 +67,7 @@ async function seedUsers() {
 
     console.log('✅ Signed in as Tom')
 
-    // Update Tom's profile to be owner
-    const { error: updateError } = await supabase
-      .from('user_profiles')
-      .update({ 
-        role: 'owner', 
-        first_name: 'Tom', 
-        last_name: 'van den Bogaart',
-        company_name: 'Softomic'
-      })
-      .eq('user_id', tomSignIn.user.id)
-
-    if (updateError) {
-      console.error('Error updating Tom profile:', updateError)
-      return
-    }
-
-    console.log('✅ Updated Tom profile to owner role')
+    console.log('✅ User profile created automatically by database trigger')
 
     // Get the existing company (created by seed.sql)
     let { data: company, error: companyError } = await supabase
@@ -177,13 +78,16 @@ async function seedUsers() {
 
     if (companyError) {
       console.log('Company not found, creating it...')
-      // Create company if it doesn't exist
-      const { data: newCompany, error: createCompanyError } = await supabase
+      // Create company using admin client to bypass RLS issues
+      const { data: newCompany, error: createCompanyError } = await supabaseAdmin
         .from('companies')
         .insert({
           name: 'Softomic',
           description: 'A software company focused on innovative solutions',
           industry: 'Technology',
+          size: '1-10',
+          website: 'http://www.softomic.nl',
+          logo_url: 'https://lh3.googleusercontent.com/p/AF1QipORLLTEMoyOhVoN9vDQwuyGnLe3D5BeRUVN1pO6=s680-w680-h510-rw',
           email: 'tom@softomic.nl'
         })
         .select()
@@ -200,8 +104,8 @@ async function seedUsers() {
       console.log('✅ Found existing company:', company.name)
     }
 
-    // Get Tom's profile ID
-    const { data: tomProfile, error: profileError } = await supabase
+    // Get Tom's profile ID using admin client
+    const { data: tomProfile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .select('id')
       .eq('user_id', tomSignIn.user.id)
@@ -212,8 +116,8 @@ async function seedUsers() {
       return
     }
 
-    // Add Tom as company owner
-    const { error: memberError } = await supabase
+    // Add Tom as company owner using admin client
+    const { error: memberError } = await supabaseAdmin
       .from('company_members')
       .insert({
         company_id: company.id,
@@ -222,73 +126,134 @@ async function seedUsers() {
       })
 
     if (memberError) {
-      console.error('Error adding Tom as company owner:', memberError)
+      if (memberError.code === '23505') {
+        console.log('ℹ️  Tom is already a company owner')
+      } else {
+        console.error('Error adding Tom as company owner:', memberError)
+        return
+      }
+    } else {
+      console.log('✅ Added Tom as company owner')
+    }
+
+    // Update Tom's user profile role to 'owner' to match his company role
+    const { error: roleUpdateError } = await supabaseAdmin
+      .from('user_profiles')
+      .update({ role: 'owner' })
+      .eq('user_id', tomSignIn.user.id)
+
+    if (roleUpdateError) {
+      console.error('Error updating Tom profile role:', roleUpdateError)
       return
     }
 
-    console.log('✅ Added Tom as company owner')
+    console.log('✅ Updated Tom profile role to owner')
+
+    // Create company functions for Softomic
+    console.log('Creating company functions...')
+    const commonFunctions = [
+      {
+        name: 'Software Development',
+        description: 'Core software development and programming tasks',
+        color: '#3b82f6' // Blue
+      },
+      {
+        name: 'Frontend Development',
+        description: 'User interface and frontend development work',
+        color: '#10b981' // Green
+      },
+      {
+        name: 'Backend Development',
+        description: 'Server-side and backend development work',
+        color: '#f59e0b' // Amber
+      },
+      {
+        name: 'DevOps & Infrastructure',
+        description: 'DevOps, deployment, and infrastructure management',
+        color: '#8b5cf6' // Purple
+      },
+      {
+        name: 'Quality Assurance',
+        description: 'Testing, QA, and quality control',
+        color: '#ef4444' // Red
+      },
+      {
+        name: 'Project Management',
+        description: 'Project coordination and management tasks',
+        color: '#06b6d4' // Cyan
+      },
+      {
+        name: 'Design & UX',
+        description: 'User experience design and visual design',
+        color: '#ec4899' // Pink
+      },
+      {
+        name: 'Business Analysis',
+        description: 'Requirements gathering and business analysis',
+        color: '#84cc16' // Lime
+      }
+    ]
+
+    for (const func of commonFunctions) {
+      const { data: newFunction, error: functionError } = await supabaseAdmin
+        .from('company_functions')
+        .insert({
+          company_id: company.id,
+          name: func.name,
+          description: func.description,
+          color: func.color,
+          created_by: tomProfile.id
+        })
+        .select()
+        .single()
+
+      if (functionError) {
+        console.error(`Error creating function "${func.name}":`, functionError)
+      } else {
+        console.log(`✅ Created function: ${func.name}`)
+      }
+    }
+
+    // Assign Tom to Software Development as primary function
+    console.log('Assigning Tom to Software Development function...')
+    const { data: softwareDevFunction, error: getFunctionError } = await supabaseAdmin
+      .from('company_functions')
+      .select('id')
+      .eq('company_id', company.id)
+      .eq('name', 'Software Development')
+      .single()
+
+    if (!getFunctionError && softwareDevFunction) {
+      const { error: assignmentError } = await supabaseAdmin
+        .from('company_function_assignments')
+        .insert({
+          company_id: company.id,
+          user_id: tomProfile.id,
+          function_id: softwareDevFunction.id,
+          is_primary: true,
+          assigned_by: tomProfile.id
+        })
+
+      if (assignmentError) {
+        console.error('Error assigning Tom to Software Development function:', assignmentError)
+      } else {
+        console.log('✅ Assigned Tom to Software Development function')
+      }
+    }
+
+    console.log('✅ Company functions created and assigned')
 
     // Sign out Tom
     await supabase.auth.signOut()
     console.log('Signed out Tom')
 
-    // Create join requests from all users using admin client to bypass RLS
-    console.log('Creating join requests from all users...')
-    
-    const joinRequestMessages = [
-      'Hi! I would like to join your company. I have experience in software development and would love to contribute to your projects.',
-      'Hello! I\'m interested in joining Softomic. I have a background in frontend development and UI/UX design.',
-      'Hi there! I\'m a backend developer looking for new opportunities. I\'d love to be part of your team.',
-      'Hello! I have experience in DevOps and cloud infrastructure. I think I could add value to your company.',
-      'Hi! I\'m a product manager with experience in agile methodologies. I\'d love to discuss how I can contribute.',
-      'Hello! I\'m a data scientist interested in joining your team. I have experience with machine learning and analytics.'
-    ]
-
-    const joinRequestStatuses = ['pending', 'pending', 'pending', 'approved', 'rejected', 'pending']
-
-    // Get all user profiles using admin client
-    const { data: allProfiles, error: profilesError } = await supabaseAdmin
-      .from('user_profiles')
-      .select('id, email')
-      .neq('role', 'owner') // Exclude company owners
-
-    if (profilesError) {
-      console.error('Error getting user profiles:', profilesError)
-      return
-    }
-
-    // Create join requests for each user
-    for (let i = 0; i < allProfiles.length; i++) {
-      const profile = allProfiles[i]
-      const message = joinRequestMessages[i] || joinRequestMessages[0]
-      const status = joinRequestStatuses[i] || 'pending'
-
-      const { error: joinRequestError } = await supabaseAdmin
-        .from('company_join_requests')
-        .insert({
-          company_id: company.id,
-          user_id: profile.id,
-          message: message,
-          status: status
-        })
-
-      if (joinRequestError) {
-        console.error(`Error creating join request for ${profile.email}:`, joinRequestError)
-      } else {
-        console.log(`✅ Created join request from ${profile.email} (${status})`)
-      }
-    }
+    console.log('✅ Company setup complete - ready for testing invitations')
 
     console.log('\n🎉 Seed completed successfully!')
     console.log('You can now sign in with:')
     console.log('- tom@softomic.nl (password: password123) - Company Owner')
-    console.log('- bogatom98@gmail.com (password: password123) - User with join request')
-    console.log('- sarah.johnson@email.com (password: password123) - User with join request')
-    console.log('- mike.chen@email.com (password: password123) - User with join request')
-    console.log('- emma.wilson@email.com (password: password123) - User with join request')
-    console.log('- alex.rodriguez@email.com (password: password123) - User with join request')
-    console.log('- lisa.thompson@email.com (password: password123) - User with join request')
-    console.log('\nJoin request statuses: 4 pending, 1 approved, 1 rejected')
+    console.log('\nCompany setup complete - ready for testing the invitation system')
+    console.log('Use the company invitations manager to send invitations to new users')
 
   } catch (error) {
     console.error('Unexpected error:', error)

@@ -20,7 +20,7 @@ export function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [joinRequestCount, setJoinRequestCount] = useState(0)
+  const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0)
   const router = useRouter()
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export function Header() {
           })
         } else {
           setUser(null)
-          setJoinRequestCount(0)
+          setPendingInvitationsCount(0)
         }
       }
     )
@@ -60,11 +60,11 @@ export function Header() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Fetch join request count when user is authenticated
+  // Fetch pending invitations count when user is authenticated
   useEffect(() => {
-    const fetchJoinRequestCount = async () => {
+    const fetchPendingInvitationsCount = async () => {
       if (!user) {
-        setJoinRequestCount(0)
+        setPendingInvitationsCount(0)
         return
       }
 
@@ -72,39 +72,44 @@ export function Header() {
         // Get user's companies
         const { companies, error } = await CompanyService.getUserCompanies(user.id)
         if (error || !companies || companies.length === 0) {
-          setJoinRequestCount(0)
+          setPendingInvitationsCount(0)
           return
         }
 
         // Get count for the first company (assuming user is in one company)
         const company = companies[0]
         
-        // Check if user can view join requests
-        const { canView } = await CompanyService.canViewJoinRequests(company.id, user.id)
+        // Check if user can view invitations (is owner or admin)
+        const { canView } = await CompanyService.canViewInvitations(company.id, user.id)
         if (!canView) {
-          setJoinRequestCount(0)
+          setPendingInvitationsCount(0)
           return
         }
 
-        const { count } = await CompanyService.getPendingJoinRequestCount(company.id)
-        setJoinRequestCount(count)
+        // Get pending invitations count using the new invitations service
+        const { CompanyInvitationsService } = await import('@/lib/company-invitations-service')
+        const invitationsService = new CompanyInvitationsService()
+        const { data: invitations } = await invitationsService.getCompanyInvitations(company.id)
+        
+        const pendingCount = invitations?.filter(inv => inv.status === 'pending' && new Date(inv.expires_at) > new Date()).length || 0
+        setPendingInvitationsCount(pendingCount)
       } catch (error) {
-        console.error('Error fetching join request count:', error)
-        setJoinRequestCount(0)
+        console.error('Error fetching pending invitations count:', error)
+        setPendingInvitationsCount(0)
       }
     }
 
-    fetchJoinRequestCount()
+    fetchPendingInvitationsCount()
 
     // Listen for custom events to refresh the count
     const handleRefreshCount = () => {
-      fetchJoinRequestCount()
+      fetchPendingInvitationsCount()
     }
 
-    window.addEventListener('refreshJoinRequestCount', handleRefreshCount)
+    window.addEventListener('refreshInvitationsCount', handleRefreshCount)
     
     return () => {
-      window.removeEventListener('refreshJoinRequestCount', handleRefreshCount)
+      window.removeEventListener('refreshInvitationsCount', handleRefreshCount)
     }
   }, [user])
 
@@ -187,12 +192,12 @@ export function Header() {
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative"
                 >
                   Team
-                  {joinRequestCount > 0 && (
+                  {pendingInvitationsCount > 0 && (
                     <Badge 
                       variant="destructive" 
                       className="absolute -top-2 -right-3 rounded-full px-1 py-0 text-white text-xs font-medium"
                     >
-                      {joinRequestCount > 99 ? '99+' : joinRequestCount}
+                      {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
                     </Badge>
                   )}
                 </Link>
@@ -366,12 +371,12 @@ export function Header() {
                   >
                     <div className="flex items-center justify-between">
                       <span>Team</span>
-                      {joinRequestCount > 0 && (
+                      {pendingInvitationsCount > 0 && (
                         <Badge 
                           variant="destructive"
                           className="rounded-full px-1 py-0 text-white text-xs font-medium"
                         >
-                          {joinRequestCount > 99 ? '99+' : joinRequestCount}
+                          {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
                         </Badge>
                       )}
                     </div>

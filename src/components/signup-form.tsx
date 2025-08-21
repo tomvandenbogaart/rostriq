@@ -54,8 +54,8 @@ export function SignUpForm() {
           setEmail('')
           setPassword('')
           setConfirmPassword('')
-          // Redirect to role selection
-          router.push('/role-selection')
+          // Redirect to dashboard
+          router.push('/dashboard')
         } else {
           // Try to sign in the user manually
           try {
@@ -73,8 +73,8 @@ export function SignUpForm() {
               setEmail('')
               setPassword('')
               setConfirmPassword('')
-              // Redirect to role selection
-              router.push('/role-selection')
+              // Redirect to dashboard
+              router.push('/dashboard')
             }
           } catch (signInError) {
             toast.error("Account created but couldn't sign you in automatically. Please sign in manually.")

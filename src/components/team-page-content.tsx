@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, UserPlus } from 'lucide-react';
 import { TeamDirectory } from './team-directory';
-import { CompanyJoinRequests } from './company-join-requests';
+
 import type { CompanyMember } from '@/types/database';
 
 interface TeamMemberWithProfile extends CompanyMember {
@@ -84,38 +84,17 @@ export function TeamPageContent({
         </CardContent>
       </Card>
 
-      {/* Team Directory and Join Requests */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Team Directory - Takes 3/4 width */}
-        <div className="lg:col-span-3">
-          <TeamDirectory
-            members={members}
-            isLoading={isLoading}
-            error={error}
-            companyId={companyId}
-            currentUserId={currentUserId}
-            viewOnly={viewOnly}
-            onTeamMembersChange={onTeamMembersChange}
-          />
-        </div>
-
-        {/* Join Requests - Takes 1/4 width */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Join Requests</CardTitle>
-              <CardDescription>
-                Review and manage pending requests to join your company
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CompanyJoinRequests 
-                companyId={companyId} 
-                onRequestProcessed={onTeamMembersChange}
-              />
-            </CardContent>
-          </Card>
-        </div>
+      {/* Team Directory */}
+      <div>
+        <TeamDirectory
+          members={members}
+          isLoading={isLoading}
+          error={error}
+          companyId={companyId}
+          currentUserId={currentUserId}
+          viewOnly={viewOnly}
+          onTeamMembersChange={onTeamMembersChange}
+        />
       </div>
     </div>
   );
