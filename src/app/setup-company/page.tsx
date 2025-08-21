@@ -32,6 +32,7 @@ export default function SetupCompanyPage() {
           // Don't return here, continue with setup if there's an error fetching companies
         } else if (companies && companies.length > 0) {
           // If user already has a company, redirect to dashboard
+          console.log('User already has companies, redirecting to dashboard');
           router.push('/dashboard');
           return;
         }
@@ -51,6 +52,7 @@ export default function SetupCompanyPage() {
 
         // Only allow owners to create companies
         if (userProfile?.role !== 'owner') {
+          console.log('User is not an owner, redirecting to dashboard');
           router.push('/dashboard');
           return;
         }

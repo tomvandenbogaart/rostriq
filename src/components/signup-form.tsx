@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,42 @@ export function SignUpForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  
+  // Get invitation token and redirect from URL if available
+  const [invitationToken, setInvitationToken] = useState<string | null>(null)
+  const [redirectPath, setRedirectPath] = useState<string | null>(null)
+
+  // Prefill email from query string and get invitation context
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const invitedEmail = params.get('email')
+      const token = params.get('token')
+      const redirect = params.get('redirect')
+      
+      console.log('Signup form URL params:', { invitedEmail, token, redirect })
+      
+      if (invitedEmail) setEmail(invitedEmail)
+      
+      // Handle both direct token parameter and token within redirect parameter
+      if (token) {
+        setInvitationToken(token)
+        console.log('Set invitation token from direct parameter:', token)
+      } else if (redirect && redirect.includes('token=')) {
+        // Extract token from redirect parameter (e.g., /join?token=abc123)
+        const redirectParams = new URLSearchParams(redirect.split('?')[1] || '')
+        const redirectToken = redirectParams.get('token')
+        if (redirectToken) {
+          setInvitationToken(redirectToken)
+          console.log('Set invitation token from redirect parameter:', redirectToken)
+        }
+      }
+      
+      if (redirect) setRedirectPath(redirect)
+    } catch (error) {
+      console.error('Error parsing URL parameters:', error)
+    }
+  }, [])
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,12 +86,7 @@ export function SignUpForm() {
         } else if (data.session) {
           // User is automatically signed in
           toast.success("Account created successfully! Welcome to RostrIQ!")
-          // Clear form on success
-          setEmail('')
-          setPassword('')
-          setConfirmPassword('')
-          // Redirect to dashboard
-          router.push('/dashboard')
+          await handlePostSignupFlow()
         } else {
           // Try to sign in the user manually
           try {
@@ -69,12 +100,7 @@ export function SignUpForm() {
               router.push('/signin')
             } else {
               toast.success("Account created successfully! Welcome to RostrIQ!")
-              // Clear form on success
-              setEmail('')
-              setPassword('')
-              setConfirmPassword('')
-              // Redirect to dashboard
-              router.push('/dashboard')
+              await handlePostSignupFlow()
             }
           } catch (signInError) {
             toast.error("Account created but couldn't sign you in automatically. Please sign in manually.")
@@ -86,6 +112,28 @@ export function SignUpForm() {
       toast.error("An unexpected error occurred")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Handle post-signup flow (invitation acceptance or dashboard redirect)
+  const handlePostSignupFlow = async () => {
+    console.log('handlePostSignupFlow called with:', { invitationToken, redirectPath })
+    
+    // Clear form on success
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
+    
+    if (invitationToken) {
+      // If this was an invitation signup, redirect back to join page
+      // The join page will auto-accept the invitation
+      console.log('Redirecting to join page with token:', invitationToken)
+      toast.success("Account created! Redirecting to complete your invitation...")
+      router.push(`/join?token=${invitationToken}`)
+    } else {
+      // Regular signup, go to dashboard
+      console.log('No invitation token, redirecting to dashboard')
+      router.push('/dashboard')
     }
   }
 

@@ -70,21 +70,15 @@ function TeamPageMain() {
           email: currentUser.email || '',
         });
 
-        // Create user profile from auth data instead of querying database
-        const userProfileData = {
-          id: currentUser.id,
-          user_id: currentUser.id,
-          email: currentUser.email || '',
-          role: 'owner' as const, // Since they're accessing team page, they're likely an owner
-          first_name: currentUser.user_metadata?.first_name || '',
-          last_name: currentUser.user_metadata?.last_name || '',
-          company_name: '',
-          phone: '',
-          avatar_url: '',
-          is_active: true,
-          created_at: currentUser.created_at,
-          updated_at: currentUser.updated_at || currentUser.created_at
+        // Get actual user profile from database to check role
+        const userProfileData = await DatabaseService.getUserProfile(currentUser.id);
+        
+        if (!userProfileData) {
+          console.error('No user profile found');
+          router.push('/dashboard');
+          return;
         }
+
         setUserProfile(userProfileData);
 
         // Fetch user's companies
@@ -101,7 +95,22 @@ function TeamPageMain() {
         }
 
         // Use the first company
-        setUserCompany(companies[0]);
+        const userCompanyData = companies[0];
+        setUserCompany(userCompanyData);
+
+        // Check if user has permission to access team management (must be owner or admin)
+        const { canView, error: permissionError } = await CompanyService.canViewInvitations(userCompanyData.id, currentUser.id);
+        
+        if (permissionError) {
+          console.error('Error checking permissions:', permissionError);
+          router.push('/dashboard');
+          return;
+        }
+
+        if (!canView) {
+          router.push('/dashboard');
+          return;
+        }
       } catch (error) {
         console.error('Error fetching user:', error);
         router.push('/signin');

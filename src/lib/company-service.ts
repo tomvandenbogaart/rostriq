@@ -1,6 +1,29 @@
 import { supabase } from './supabase';
 import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, DailySchedule, CompanyInvitation } from '@/types/database';
 
+// Type for the RPC function result
+interface TeamMemberRPCResult {
+  id: string;
+  company_id: string;
+  user_id: string;
+  role: string;
+  permissions: Record<string, unknown>;
+  joined_at: string;
+  is_active: boolean;
+  working_days?: string[];
+  working_hours_start?: string; // TIME from database comes as string
+  working_hours_end?: string; // TIME from database comes as string
+  is_part_time?: boolean;
+  working_schedule_notes?: string;
+  daily_schedule?: DailySchedule;
+  weekly_hours?: number;
+  is_pending_invitation: boolean;
+  user_email?: string;
+  user_first_name?: string;
+  user_last_name?: string;
+  user_avatar_url?: string;
+}
+
 export class CompanyService {
   // Create a new company
   static async createCompany(companyData: CreateCompany, userId: string): Promise<{ company: Company | null; error: string | null }> {
@@ -261,127 +284,41 @@ export class CompanyService {
   // Get company members with user profile information
   static async getCompanyTeamMembers(companyId: string): Promise<{ members: (CompanyMember & { user_profile: { email: string; first_name?: string; last_name?: string; avatar_url?: string } })[]; error: string | null }> {
     try {
-      // Get company members first
-      const { data: membersData, error: membersError } = await supabase
-        .from('company_members')
-        .select('*')
-        .eq('company_id', companyId)
-        .eq('is_active', true)
-        .order('joined_at', { ascending: true });
+      // Use the new RPC function for better performance and reliability
+      const { data: members, error } = await supabase
+        .rpc('get_company_team_members', { company_id_param: companyId });
 
-      if (membersError) {
-        return { members: [], error: membersError.message };
+      if (error) {
+        console.error('Error calling get_company_team_members RPC:', error);
+        return { members: [], error: error.message };
       }
 
-      // Get pending invitations
-      const { data: pendingInvitations, error: invitationsError } = await supabase
-        .from('company_invitations')
-        .select('*')
-        .eq('company_id', companyId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true });
-
-      if (invitationsError) {
-        console.error('Error fetching pending invitations:', invitationsError);
-        // Continue without invitations if there's an error
-      }
-
-      if (!membersData || membersData.length === 0) {
-        // If no members, just return invitations as pending members
-        if (pendingInvitations && pendingInvitations.length > 0) {
-          const pendingMembers = pendingInvitations.map(invitation => ({
-            id: invitation.id,
-            company_id: invitation.company_id,
-            user_id: `invitation_${invitation.id}`, // Use a special ID for invitations
-            role: invitation.role,
-            permissions: {},
-            joined_at: invitation.created_at,
-            is_active: false, // Mark as inactive since they haven't joined yet
-            is_pending_invitation: true, // Flag to identify pending invitations
-            invitation_data: invitation // Store invitation data for display
-          } as CompanyMember & { is_pending_invitation: boolean; invitation_data: CompanyInvitation }));
-
-          return { members: pendingMembers.map(member => ({
-            ...member,
-            user_profile: {
-              email: member.invitation_data.invited_email,
-              first_name: undefined,
-              last_name: undefined,
-              avatar_url: undefined
-            }
-          })), error: null };
+      // Transform the RPC result to match the expected interface
+      const transformedMembers = (members || []).map((member: TeamMemberRPCResult) => ({
+        id: member.id,
+        company_id: member.company_id,
+        user_id: member.user_id,
+        role: member.role,
+        permissions: member.permissions || {},
+        joined_at: member.joined_at,
+        is_active: member.is_active,
+        working_days: member.working_days,
+        working_hours_start: member.working_hours_start,
+        working_hours_end: member.working_hours_end,
+        is_part_time: member.is_part_time,
+        working_schedule_notes: member.working_schedule_notes,
+        daily_schedule: member.daily_schedule,
+        weekly_hours: member.weekly_hours,
+        is_pending_invitation: member.is_pending_invitation,
+        user_profile: {
+          email: member.user_email || 'No email available',
+          first_name: member.user_first_name,
+          last_name: member.user_last_name,
+          avatar_url: member.user_avatar_url
         }
-        return { members: [], error: null };
-      }
+      }));
 
-      // Get user profiles for all members
-      const userProfileIds = membersData.map(member => member.user_id);
-
-      const { data: userProfiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('id, email, first_name, last_name, avatar_url')
-        .in('id', userProfileIds);
-
-      if (profilesError) {
-        return { members: [], error: profilesError.message };
-      }
-
-      // Combine the data for active members
-      const membersWithProfiles = membersData.map(member => {
-        const userProfile = userProfiles?.find(profile => profile.id === member.user_id);
-
-        if (userProfile) {
-          return {
-            ...member,
-            user_profile: {
-              email: userProfile.email,
-              first_name: userProfile.first_name || undefined,
-              last_name: userProfile.last_name || undefined,
-              avatar_url: userProfile.avatar_url || undefined
-            }
-          };
-        } else {
-          return {
-            ...member,
-            user_profile: { 
-              email: 'No email available', 
-              first_name: undefined, 
-              last_name: undefined,
-              avatar_url: undefined
-            }
-          };
-        }
-      });
-
-      // Add pending invitations as pending members
-      if (pendingInvitations && pendingInvitations.length > 0) {
-        const pendingMembers = pendingInvitations.map(invitation => ({
-          id: invitation.id,
-          company_id: invitation.company_id,
-          user_id: `invitation_${invitation.id}`, // Use a special ID for invitations
-          role: invitation.role,
-          permissions: {},
-          joined_at: invitation.created_at,
-          is_active: false, // Mark as inactive since they haven't joined yet
-          is_pending_invitation: true, // Flag to identify pending invitations
-          invitation_data: invitation // Store invitation data for display
-        } as CompanyMember & { is_pending_invitation: boolean; invitation_data: CompanyInvitation }));
-
-        const pendingMembersWithProfiles = pendingMembers.map(member => ({
-          ...member,
-          user_profile: {
-            email: member.invitation_data.invited_email,
-            first_name: undefined,
-            last_name: undefined,
-            avatar_url: undefined
-          }
-        }));
-
-        // Combine active members and pending invitations
-        return { members: [...membersWithProfiles, ...pendingMembersWithProfiles], error: null };
-      }
-
-      return { members: membersWithProfiles, error: null };
+      return { members: transformedMembers, error: null };
     } catch (error) {
       console.error('Error in getCompanyTeamMembers:', error);
       return { members: [], error: 'Failed to fetch team members' };

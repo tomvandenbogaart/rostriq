@@ -108,15 +108,32 @@ export class CompanyInvitationsService {
    * Get invitation by token
    */
   async getInvitationByToken(token: string): Promise<{ data: CompanyInvitation | null; error: Error | null }> {
-    const { data, error } = await supabase
-      .from('company_invitations')
-      .select('*, companies(*)')
-      .eq('invitation_token', token)
-      .eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString())
-      .single();
+    try {
+      // Validate token format first
+      if (!this.isValidToken(token)) {
+        return { data: null, error: new Error('Invalid token format') };
+      }
 
-    return { data, error: error as Error };
+      const { data, error } = await supabase
+        .from('company_invitations')
+        .select('*, companies(*)')
+        .eq('invitation_token', token)
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (error) {
+        // Handle specific error codes
+        if (error.code === 'PGRST116') {
+          return { data: null, error: new Error('Invitation not found or has expired') };
+        }
+        return { data: null, error: error as Error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error: error as Error };
+    }
   }
 
   /**

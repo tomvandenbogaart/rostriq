@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,15 @@ export function SignInForm() {
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  // Prefill email from query string (e.g., /signin?email=...)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const invitedEmail = params.get('email')
+      if (invitedEmail) setEmail(invitedEmail)
+    } catch (_) {}
+  }, [])
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()

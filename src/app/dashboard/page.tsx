@@ -47,30 +47,50 @@ function DashboardContent() {
           created_at: currentUser.created_at,
         })
 
+        // If user just joined a company, wait a bit for the database to sync
+        const justJoined = searchParams.get('joined') === 'true'
+        if (justJoined) {
+          // Wait 1 second for database to sync
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+
         // Check if user has companies first (this bypasses RLS issues)
-        const { companies } = await CompanyService.getUserCompanies(currentUser.id)
+        console.log('Checking for user companies...')
+        const { companies, error: companiesError } = await CompanyService.getUserCompanies(currentUser.id)
+        if (companiesError) {
+          console.error('Error fetching user companies:', companiesError)
+        }
+        console.log('Found companies:', companies)
+        
+        // Get user profile to check role first
+        const { data: userProfileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+          router.push('/signin');
+          return;
+        }
+
+        console.log('User profile data:', userProfileData);
+        setUserProfile(userProfileData);
+        setUserRole(userProfileData.role);
+        
         if (companies && companies.length > 0) {
           setUserCompany(companies[0])
-          // Set a default user profile since we know the user exists
-          setUserProfile({
-            id: currentUser.id,
-            user_id: currentUser.id,
-            email: currentUser.email || '',
-            role: 'owner', // Default to owner since they have a company
-            first_name: '',
-            last_name: '',
-            company_name: companies[0].name,
-            phone: '',
-            avatar_url: '',
-            is_active: true,
-            created_at: currentUser.created_at,
-            updated_at: currentUser.created_at
-          })
-          setUserRole('owner')
-        } else {
-          // No companies found, redirect to setup company
+          // User has companies, no need to redirect
+        } else if (userProfileData.role === 'owner') {
+          // Owner without companies should go to setup
+          console.log('User is owner but has no companies, redirecting to setup-company');
           router.push('/setup-company')
           return
+        } else {
+          // Regular user without companies can stay on dashboard
+          // They might be waiting for an invitation or have a different flow
+          console.log('User is not an owner and has no companies, staying on dashboard')
         }
 
         // Handle URL company parameter if provided
@@ -214,15 +234,70 @@ function DashboardContent() {
             <Card>
               <CardContent className="text-center py-8">
                 <div className="text-muted-foreground mb-4">
-                  Company profile not set up yet
+                  {userRole === 'owner' 
+                    ? 'Company profile not set up yet' 
+                    : 'You are not associated with any company yet'
+                  }
                 </div>
-                <Button onClick={() => router.push('/setup-company')}>
-                  Set Up Company
-                </Button>
+                {userRole === 'owner' ? (
+                  <Button onClick={() => router.push('/setup-company')}>
+                    Set Up Company
+                  </Button>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      As a regular user, you need to be invited to join a company by an owner.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Please contact a company owner to receive an invitation.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
+          {/* Debug Information */}
+          {process.env.NODE_ENV === 'development' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Debug Information</CardTitle>
+                <CardDescription>Current user state for debugging</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div><strong>User ID:</strong> {user?.id}</div>
+                  <div><strong>Email:</strong> {user?.email}</div>
+                  <div><strong>Role:</strong> {userRole}</div>
+                  <div><strong>Has Company:</strong> {userCompany ? 'Yes' : 'No'}</div>
+                  {userCompany && (
+                    <div><strong>Company Name:</strong> {userCompany.name}</div>
+                  )}
+                  <div><strong>Profile ID:</strong> {userProfile?.id}</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pending Invitations for Users Without Companies */}
+          {!userCompany && userRole === 'user' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Invitations</CardTitle>
+                <CardDescription>Check if you have any pending company invitations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground mb-4">
+                    You don&apos;t have any pending invitations at the moment.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Company owners can send you invitations to join their companies.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
 
           {/* Getting Started Card */}
@@ -313,19 +388,19 @@ function DashboardContent() {
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
                           3
                         </div>
-                        <span>Complete your profile</span>
+                        <span>Wait for company invitation</span>
                       </div>
                       <div className="flex items-center space-x-3">
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
                           4
                         </div>
-                        <span>View your schedule</span>
+                        <span>Accept invitation to join company</span>
                       </div>
                       <div className="flex items-center space-x-3">
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
                           5
                         </div>
-                        <span>Check working hours</span>
+                        <span>View your schedule and working hours</span>
                       </div>
                     </>
                   )}

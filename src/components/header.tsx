@@ -21,6 +21,8 @@ export function Header() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0)
+  const [canAccessTeam, setCanAccessTeam] = useState(false)
+  const [canAccessCompanySettings, setCanAccessCompanySettings] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -53,6 +55,8 @@ export function Header() {
         } else {
           setUser(null)
           setPendingInvitationsCount(0)
+          setCanAccessTeam(false)
+          setCanAccessCompanySettings(false)
         }
       }
     )
@@ -65,6 +69,8 @@ export function Header() {
     const fetchPendingInvitationsCount = async () => {
       if (!user) {
         setPendingInvitationsCount(0)
+        setCanAccessTeam(false)
+        setCanAccessCompanySettings(false)
         return
       }
 
@@ -73,6 +79,8 @@ export function Header() {
         const { companies, error } = await CompanyService.getUserCompanies(user.id)
         if (error || !companies || companies.length === 0) {
           setPendingInvitationsCount(0)
+          setCanAccessTeam(false)
+          setCanAccessCompanySettings(false)
           return
         }
 
@@ -83,8 +91,17 @@ export function Header() {
         const { canView } = await CompanyService.canViewInvitations(company.id, user.id)
         if (!canView) {
           setPendingInvitationsCount(0)
+          setCanAccessTeam(false)
+          setCanAccessCompanySettings(false)
           return
         }
+
+        // User can access team management
+        setCanAccessTeam(true)
+
+        // Check if user can access company settings (must be owner)
+        const { isOwner } = await CompanyService.isCompanyOwner(company.id, user.id)
+        setCanAccessCompanySettings(isOwner)
 
         // Get pending invitations count using the new invitations service
         const { CompanyInvitationsService } = await import('@/lib/company-invitations-service')
@@ -96,6 +113,8 @@ export function Header() {
       } catch (error) {
         console.error('Error fetching pending invitations count:', error)
         setPendingInvitationsCount(0)
+        setCanAccessTeam(false)
+        setCanAccessCompanySettings(false)
       }
     }
 
@@ -187,20 +206,22 @@ export function Header() {
                 >
                   Rosters
                 </Link>
-                <Link 
-                  href="/team" 
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative"
-                >
-                  Team
-                  {pendingInvitationsCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-2 -right-3 rounded-full px-1 py-0 text-white text-xs font-medium"
-                    >
-                      {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
-                    </Badge>
-                  )}
-                </Link>
+                {canAccessTeam && (
+                  <Link 
+                    href="/team" 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative"
+                  >
+                    Team
+                    {pendingInvitationsCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-2 -right-3 rounded-full px-1 py-0 text-white text-xs font-medium"
+                      >
+                        {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
+                      </Badge>
+                    )}
+                  </Link>
+                )}
                 <Link 
                   href="/reports" 
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -261,14 +282,16 @@ export function Header() {
                             <User className="h-4 w-4 mr-3" />
                             Account Settings
                           </Link>
-                          <Link
-                            href="/company-settings"
-                            className="flex items-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                            onClick={() => setIsUserDropdownOpen(false)}
-                          >
-                            <Building2 className="h-4 w-4 mr-3" />
-                            Company Settings
-                          </Link>
+                          {canAccessCompanySettings && (
+                            <Link
+                              href="/company-settings"
+                              className="flex items-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                              onClick={() => setIsUserDropdownOpen(false)}
+                            >
+                              <Building2 className="h-4 w-4 mr-3" />
+                              Company Settings
+                            </Link>
+                          )}
                           <div className="border-t my-1" />
                           <button
                             onClick={handleSignOut}
@@ -364,23 +387,25 @@ export function Header() {
                   >
                     Rosters
                   </Link>
-                  <Link
-                    href="/team"
-                    className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors relative"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Team</span>
-                      {pendingInvitationsCount > 0 && (
-                        <Badge 
-                          variant="destructive"
-                          className="rounded-full px-1 py-0 text-white text-xs font-medium"
-                        >
-                          {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
-                        </Badge>
-                      )}
-                    </div>
-                  </Link>
+                  {canAccessTeam && (
+                    <Link
+                      href="/team"
+                      className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors relative"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Team</span>
+                        {pendingInvitationsCount > 0 && (
+                          <Badge 
+                            variant="destructive"
+                            className="rounded-full px-1 py-0 text-white text-xs font-medium"
+                          >
+                            {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
+                          </Badge>
+                        )}
+                      </div>
+                    </Link>
+                  )}
                   <Link
                     href="/reports"
                     className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
@@ -400,16 +425,18 @@ export function Header() {
                       Account Settings
                     </div>
                   </Link>
-                  <Link
-                    href="/company-settings"
-                    className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <div className="flex items-center">
-                      <Building2 className="h-4 w-4 mr-3" />
-                      Company Settings
-                    </div>
-                  </Link>
+                  {canAccessCompanySettings && (
+                    <Link
+                      href="/company-settings"
+                      className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <div className="flex items-center">
+                        <Building2 className="h-4 w-4 mr-3" />
+                        Company Settings
+                      </div>
+                    </Link>
+                  )}
                 </>
               )}
               <div className="pt-4 pb-3 border-t">
