@@ -144,6 +144,8 @@ export class CompanyInvitationsService {
     acceptedBy: string,
     message?: string
   ): Promise<{ data: CompanyInvitation | null; error: Error | null }> {
+    console.log('acceptInvitation called with:', { invitationId, acceptedBy, message });
+    
     const updateData: CompanyInvitationUpdate = {
       status: 'accepted',
       accepted_at: new Date().toISOString(),
@@ -151,12 +153,16 @@ export class CompanyInvitationsService {
       message,
     };
 
+    console.log('Update data:', updateData);
+
     const { data, error } = await supabase
       .from('company_invitations')
       .update(updateData)
       .eq('id', invitationId)
       .select()
       .single();
+
+    console.log('Update result:', { data, error });
 
     return { data, error: error as Error };
   }
