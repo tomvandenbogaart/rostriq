@@ -200,10 +200,10 @@ export function WorkingScheduleEditor({
           Set individual working hours for each day of the week
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4">
         {/* Header with presets and summary card */}
         <div className="flex justify-between items-start">
-          <div className="space-y-3 flex-1">
+          <div className="space-y-2 flex-1">
             <Label className="text-base font-medium">Daily Working Hours</Label>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" onClick={applyPresetWeekdays}>Mon–Fri 09:00–17:00</Button>
@@ -211,8 +211,6 @@ export function WorkingScheduleEditor({
               <Button type="button" variant="ghost" size="sm" onClick={clearAllDays}>Clear all</Button>
             </div>
           </div>
-          
-
         </div>
 
         {/* Compact table */}
@@ -220,11 +218,11 @@ export function WorkingScheduleEditor({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
-                <th className="text-left py-2 px-2">Day</th>
-                <th className="text-left py-2 px-2">On</th>
-                <th className="text-left py-2 px-2">Start</th>
-                <th className="text-left py-2 px-2">End</th>
-                <th className="text-left py-2 px-2">Hours</th>
+                <th className="text-left py-1 px-2">Day</th>
+                <th className="text-left py-1 px-2">On</th>
+                <th className="text-left py-1 px-2">Start</th>
+                <th className="text-left py-1 px-2">End</th>
+                <th className="text-left py-1 px-2">Hours</th>
               </tr>
             </thead>
             <tbody>
@@ -234,11 +232,11 @@ export function WorkingScheduleEditor({
                 const dayHours = isEnabled ? calculateDayHours(daySchedule?.start_time, daySchedule?.end_time) : 0;
                 return (
                   <tr key={day.value} className="border-b hover:bg-muted/30">
-                    <td className="py-2 px-2 font-medium">{day.label}</td>
-                    <td className="py-2 px-2">
+                    <td className="py-1 px-2 font-medium">{day.label}</td>
+                    <td className="py-1 px-2">
                       <Switch checked={isEnabled} onCheckedChange={(checked) => toggleDay(day.value, checked)} />
                     </td>
-                    <td className="py-2 px-2">
+                    <td className="py-1 px-2">
                       <Input
                         type="time"
                         value={formatTime(daySchedule?.start_time)}
@@ -247,7 +245,7 @@ export function WorkingScheduleEditor({
                         className={`w-28 ${errors[`${day.value}_start`] ? 'border-red-500' : ''}`}
                       />
                     </td>
-                    <td className="py-2 px-2">
+                    <td className="py-1 px-2">
                       <Input
                         type="time"
                         value={formatTime(daySchedule?.end_time)}
@@ -256,7 +254,7 @@ export function WorkingScheduleEditor({
                         className={`w-28 ${errors[`${day.value}_end`] ? 'border-red-500' : ''}`}
                       />
                     </td>
-                    <td className="py-2 px-2 text-muted-foreground">
+                    <td className="py-1 px-2 text-muted-foreground">
                       {isEnabled && daySchedule?.start_time && daySchedule?.end_time ? `${dayHours.toFixed(1)}h` : '-'}
                       {errors[`${day.value}_equal`] && (
                         <span className="ml-2 text-xs text-red-600">Times equal</span>
@@ -307,25 +305,8 @@ export function WorkingScheduleEditor({
           </div>
         </div>
 
-
-
-        {/* Notes */}
-        <div className="space-y-2">
-          <Label htmlFor="notes">Additional Notes</Label>
-          <Textarea
-            id="notes"
-            placeholder="Any additional information about the working schedule..."
-            value={localSchedule.working_schedule_notes || ''}
-            onChange={(e) => setLocalSchedule(prev => ({
-              ...prev,
-              working_schedule_notes: e.target.value
-            }))}
-            rows={3}
-          />
-        </div>
-
         {/* Actions */}
-        <div className="flex justify-end space-x-2 pt-4">
+        <div className="flex justify-end space-x-2 pt-2">
           <Button
             type="button"
             variant="outline"
