@@ -157,6 +157,22 @@
     @apply bg-background text-foreground;
   }
   
+  /* Enable text selection on main content areas */
+  main, .dashboard-content, .schedule-content {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+  
+  /* Ensure text in cards and content areas is selectable */
+  .card, .card-content, p, h1, h2, h3, h4, h5, h6, span, div:not(.select-none) {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+  
   /* Enhanced focus styles for better accessibility */
   *:focus-visible {
     outline: 2px solid hsl(var(--ring));
@@ -191,13 +207,37 @@
   
   /* Enhanced selection colors */
   ::selection {
-    background-color: hsl(var(--primary) / 0.2);
-    color: hsl(var(--primary-foreground));
+    background-color: #007acc;
+    color: white;
   }
   
   ::-moz-selection {
-    background-color: hsl(var(--primary) / 0.2);
-    color: hsl(var(--primary-foreground));
+    background-color: #007acc;
+    color: white;
+  }
+  
+  /* Ensure text selection is visible on all elements */
+  *::selection {
+    background-color: #007acc !important;
+    color: white !important;
+  }
+  
+  *::-moz-selection {
+    background-color: #007acc !important;
+    color: white !important;
+  }
+  
+  /* Dashboard-specific text selection */
+  .dashboard-content *::selection,
+  .schedule-content *::selection {
+    background-color: #007acc !important;
+    color: white !important;
+  }
+  
+  .dashboard-content *::-moz-selection,
+  .schedule-content *::-moz-selection {
+    background-color: #007acc !important;
+    color: white !important;
   }
   
   /* Enhanced scrollbar styling */
