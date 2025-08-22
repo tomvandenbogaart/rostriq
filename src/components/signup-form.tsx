@@ -18,47 +18,13 @@ export function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   
-  // Get invitation token and redirect from URL if available
-  const [invitationToken, setInvitationToken] = useState<string | null>(null)
-  const [redirectPath, setRedirectPath] = useState<string | null>(null)
-
-  // Prefill email from query string and get invitation context
+  // Prefill email from query string if available
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search)
       const invitedEmail = params.get('email')
-      const token = params.get('token')
-      const redirect = params.get('redirect')
-      
-      console.log('Signup form URL params:', { invitedEmail, token, redirect })
       
       if (invitedEmail) setEmail(invitedEmail)
-      
-      // Handle both direct token parameter and token within redirect parameter
-      if (token) {
-        setInvitationToken(token)
-        console.log('Set invitation token from direct parameter:', token)
-      } else if (redirect && redirect.includes('token=')) {
-        // Extract token from redirect parameter (e.g., /join?token=abc123)
-        const redirectParams = new URLSearchParams(redirect.split('?')[1] || '')
-        const redirectToken = redirectParams.get('token')
-        if (redirectToken) {
-          setInvitationToken(redirectToken)
-          console.log('Set invitation token from redirect parameter:', redirectToken)
-        }
-      }
-      
-      // If we still don't have a token, try to extract it from the redirect path
-      if (!invitationToken && redirect) {
-        const tokenMatch = redirect.match(/token=([^&]+)/)
-        if (tokenMatch) {
-          const extractedToken = tokenMatch[1]
-          setInvitationToken(extractedToken)
-          console.log('Extracted token from redirect path:', extractedToken)
-        }
-      }
-      
-      if (redirect) setRedirectPath(redirect)
     } catch (error) {
       console.error('Error parsing URL parameters:', error)
     }
@@ -146,10 +112,8 @@ export function SignUpForm() {
     }
   }
 
-  // Handle post-signup flow (invitation acceptance or dashboard redirect)
+  // Handle post-signup flow
   const handlePostSignupFlow = async () => {
-    console.log('handlePostSignupFlow called with:', { invitationToken, redirectPath })
-    
     // Clear form on success
     setEmail('')
     setPassword('')
@@ -157,17 +121,8 @@ export function SignUpForm() {
     setFirstName('')
     setLastName('')
     
-    if (invitationToken) {
-      // If this was an invitation signup, redirect back to join page
-      // The join page will auto-accept the invitation
-      console.log('Redirecting to join page with token:', invitationToken)
-      toast.success("Account created! Redirecting to complete your invitation...")
-      router.push(`/join?token=${invitationToken}`)
-    } else {
-      // Regular signup, go to dashboard
-      console.log('No invitation token, redirecting to dashboard')
-      router.push('/dashboard')
-    }
+    // Redirect to dashboard after successful signup
+    router.push('/dashboard')
   }
 
   return (

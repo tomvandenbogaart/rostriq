@@ -99,15 +99,15 @@ function TeamPageMain() {
         setUserCompany(userCompanyData);
 
         // Check if user has permission to access team management (must be owner or admin)
-        const { canView, error: permissionError } = await CompanyService.canViewInvitations(userCompanyData.id, currentUser.id);
+        const { data: currentUserMember } = await supabase
+          .from('company_members')
+          .select('role')
+          .eq('company_id', userCompanyData.id)
+          .eq('user_id', userProfileData.id)
+          .eq('is_active', true)
+          .single();
         
-        if (permissionError) {
-          console.error('Error checking permissions:', permissionError);
-          router.push('/dashboard');
-          return;
-        }
-
-        if (!canView) {
+        if (!currentUserMember || !['owner', 'admin'].includes(currentUserMember.role)) {
           router.push('/dashboard');
           return;
         }

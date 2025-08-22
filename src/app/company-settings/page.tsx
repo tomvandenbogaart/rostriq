@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Company, UserProfile } from '@/types/database'
 import { CompanyFunctionsManager } from '@/components/company-functions-manager'
+import { EmployeeManagement } from '@/components/employee-management'
 
 interface User {
   id: string
@@ -237,6 +238,20 @@ function CompanySettingsContent() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+
+          {/* Employee Management */}
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Employee Management</h2>
+              <p className="text-muted-foreground">Add and manage team members by name - no email validation required</p>
+            </div>
+            
+            <EmployeeManagement 
+              companyId={userCompany.id} 
+              company={userCompany}
+              userRole={userProfile.role as 'owner' | 'admin' | 'member'}
+            />
           </div>
 
           {/* Company Functions Management */}

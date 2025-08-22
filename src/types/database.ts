@@ -67,26 +67,9 @@ export interface CompanyMember {
   working_schedule_notes?: string;
   daily_schedule?: DailySchedule;
   weekly_hours?: number;
-  // Fields for pending invitations
-  is_pending_invitation?: boolean;
-  invitation_data?: CompanyInvitation;
 }
 
-export interface CompanyInvitation {
-  id: string;
-  company_id: string;
-  invited_email: string;
-  invited_by: string;
-  invitation_token: string;
-  expires_at: string;
-  accepted_at?: string;
-  accepted_by?: string;
-  status: 'pending' | 'accepted' | 'expired';
-  role: 'member' | 'admin';
-  message?: string;
-  created_at: string;
-  updated_at: string;
-}
+
 
 // New company functions interfaces
 export interface CompanyFunction {
@@ -171,7 +154,7 @@ export const TABLES = {
   USER_PROFILES: 'user_profiles',
   COMPANIES: 'companies',
     COMPANY_MEMBERS: 'company_members',
-  COMPANY_INVITATIONS: 'company_invitations',
+
   COMPANY_FUNCTIONS: 'company_functions',
   COMPANY_FUNCTION_ASSIGNMENTS: 'company_function_assignments',
   USER_COMPANY_VIEW: 'user_company_view',
@@ -183,7 +166,7 @@ export const TABLES = {
 export type CreateUserProfile = Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>;
 export type CreateCompany = Omit<Company, 'id' | 'created_at' | 'updated_at'>;
 export type CreateCompanyMember = Omit<CompanyMember, 'id' | 'joined_at'>;
-export type CreateCompanyInvitation = Omit<CompanyInvitation, 'id' | 'created_at' | 'updated_at' | 'accepted_at' | 'accepted_by'>;
+
 export type CreateCompanyFunction = Omit<CompanyFunction, 'id' | 'created_at' | 'updated_at'>;
 export type CreateCompanyFunctionAssignment = Omit<CompanyFunctionAssignment, 'id' | 'assigned_at'>;
 
@@ -191,6 +174,6 @@ export type CreateCompanyFunctionAssignment = Omit<CompanyFunctionAssignment, 'i
 export type UpdateUserProfile = Partial<Omit<UserProfile, 'id' | 'user_id' | 'created_at' | 'updated_at'>>;
 export type UpdateCompany = Partial<Omit<Company, 'id' | 'created_at' | 'updated_at'>>;
 export type UpdateCompanyMember = Partial<Omit<CompanyMember, 'id' | 'company_id' | 'user_id' | 'joined_at'>>;
-export type UpdateCompanyInvitation = Partial<Omit<CompanyInvitation, 'id' | 'company_id' | 'invited_email' | 'invited_by' | 'created_at' | 'updated_at'>>;
+
 export type UpdateCompanyFunction = Partial<Omit<CompanyFunction, 'id' | 'company_id' | 'created_at' | 'updated_at'>>;
 export type UpdateCompanyFunctionAssignment = Partial<Omit<CompanyFunctionAssignment, 'id' | 'company_id' | 'user_id' | 'function_id' | 'assigned_at'>>;

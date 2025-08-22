@@ -62,9 +62,7 @@ export default function TestRPCPage() {
             <h3 className="text-lg font-semibold mb-2">Summary:</h3>
             <ul className="list-disc list-inside">
               <li>Total members: {data.length}</li>
-              <li>Active members: {data.filter((m: any) => !m.is_pending_invitation).length}</li>
-              <li>Pending invitations: {data.filter((m: any) => m.is_pending_invitation).length}</li>
-              <li>Members with invitation_data: {data.filter((m: any) => m.invitation_data).length}</li>
+              <li>Active members: {data.length}</li>
             </ul>
           </div>
         </div>

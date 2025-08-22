@@ -20,7 +20,7 @@ export function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0)
+
   const [canAccessTeam, setCanAccessTeam] = useState(false)
   const [canAccessCompanySettings, setCanAccessCompanySettings] = useState(false)
   const [hasCompany, setHasCompany] = useState(false)
@@ -56,7 +56,6 @@ export function Header() {
           })
         } else {
           setUser(null)
-          setPendingInvitationsCount(0)
           setCanAccessTeam(false)
           setCanAccessCompanySettings(false)
           setHasCompany(false)
@@ -68,17 +67,16 @@ export function Header() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Fetch pending invitations count when user is authenticated
+  // Fetch user permissions when user is authenticated
   useEffect(() => {
-    const fetchPendingInvitationsCount = async () => {
-      if (!user) {
-        setPendingInvitationsCount(0)
-        setCanAccessTeam(false)
-        setCanAccessCompanySettings(false)
-        setHasCompany(false)
-        setUserRole(null)
-        return
-      }
+    const fetchUserPermissions = async () => {
+              if (!user) {
+          setCanAccessTeam(false)
+          setCanAccessCompanySettings(false)
+          setHasCompany(false)
+          setUserRole(null)
+          return
+        }
 
       try {
         // Get user profile to check role first
@@ -98,7 +96,6 @@ export function Header() {
         // Get user's companies
         const { companies, error } = await CompanyService.getUserCompanies(user.id)
         if (error || !companies || companies.length === 0) {
-          setPendingInvitationsCount(0)
           setCanAccessTeam(false)
           setCanAccessCompanySettings(false)
           setHasCompany(false)
@@ -111,32 +108,26 @@ export function Header() {
         // Get count for the first company (assuming user is in one company)
         const company = companies[0]
         
-        // Check if user can view invitations (is owner or admin)
-        const { canView } = await CompanyService.canViewInvitations(company.id, user.id)
-        if (!canView) {
-          setPendingInvitationsCount(0)
+        // Check if user can access team management (is owner or admin)
+        const { data: currentUserMember } = await supabase
+          .from('company_members')
+          .select('role')
+          .eq('company_id', company.id)
+          .eq('user_id', userProfileData.id)
+          .eq('is_active', true)
+          .single();
+        
+        if (currentUserMember && ['owner', 'admin'].includes(currentUserMember.role)) {
+          setCanAccessTeam(true)
+        } else {
           setCanAccessTeam(false)
-          setCanAccessCompanySettings(false)
-          return
         }
-
-        // User can access team management
-        setCanAccessTeam(true)
 
         // Check if user can access company settings (must be owner)
         const { isOwner } = await CompanyService.isCompanyOwner(company.id, user.id)
         setCanAccessCompanySettings(isOwner)
-
-        // Get pending invitations count using the new invitations service
-        const { CompanyInvitationsService } = await import('@/lib/company-invitations-service')
-        const invitationsService = new CompanyInvitationsService()
-        const { data: invitations } = await invitationsService.getCompanyInvitations(company.id)
-        
-        const pendingCount = invitations?.filter(inv => inv.status === 'pending' && new Date(inv.expires_at) > new Date()).length || 0
-        setPendingInvitationsCount(pendingCount)
       } catch (error) {
-        console.error('Error fetching pending invitations count:', error)
-        setPendingInvitationsCount(0)
+        console.error('Error fetching user permissions:', error)
         setCanAccessTeam(false)
         setCanAccessCompanySettings(false)
         setHasCompany(false)
@@ -144,18 +135,7 @@ export function Header() {
       }
     }
 
-    fetchPendingInvitationsCount()
-
-    // Listen for custom events to refresh the count
-    const handleRefreshCount = () => {
-      fetchPendingInvitationsCount()
-    }
-
-    window.addEventListener('refreshInvitationsCount', handleRefreshCount)
-    
-    return () => {
-      window.removeEventListener('refreshInvitationsCount', handleRefreshCount)
-    }
+    fetchUserPermissions()
   }, [user])
 
   const handleSignOut = async () => {
@@ -242,14 +222,7 @@ export function Header() {
                         className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative"
                       >
                         Team
-                        {pendingInvitationsCount > 0 && (
-                          <Badge 
-                            variant="destructive" 
-                            className="absolute -top-2 -right-3 rounded-full px-1 py-0 text-white text-xs font-medium"
-                          >
-                            {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
-                          </Badge>
-                        )}
+
                       </Link>
                     )}
                     <Link 
@@ -444,14 +417,7 @@ export function Header() {
                         >
                           <div className="flex items-center justify-between">
                             <span>Team</span>
-                            {pendingInvitationsCount > 0 && (
-                              <Badge 
-                                variant="destructive"
-                                className="rounded-full px-1 py-0 text-white text-xs font-medium"
-                              >
-                                {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
-                              </Badge>
-                            )}
+
                           </div>
                         </Link>
                       )}

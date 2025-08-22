@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 
 import { CompanyService } from '@/lib/company-service'
 import { CompanyFunctionsService } from '@/lib/company-functions-service'
+import { UserProfileService } from '@/lib/user-profile-service'
 import { SideMenu } from '@/components/side-menu'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -106,16 +107,13 @@ function DashboardContent() {
         }
         console.log('Found companies:', companies)
         
-        // Get user profile to check role first
-        const { data: userProfileData, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .single();
+        // Get user profile to check role first using the centralized service
+        const { userProfile: userProfileData, error: profileError } = await UserProfileService.getUserProfile(currentUser.id);
 
-        if (profileError) {
+        if (profileError || !userProfileData) {
           console.error('Error fetching user profile:', profileError);
-          router.push('/signin');
+          // Don't redirect to signin immediately, just show an error
+          setLoading(false);
           return;
         }
 
@@ -137,7 +135,7 @@ function DashboardContent() {
           return
         } else {
           // Regular user without companies can stay on dashboard
-          // They might be waiting for an invitation or have a different flow
+          // They might need to contact a company owner to be added
           console.log('User is not an owner and has no companies, staying on dashboard')
         }
 
@@ -423,7 +421,7 @@ function DashboardContent() {
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
                           4
                         </div>
-                        <span>Invite team members</span>
+                        <span>Add team members by name</span>
                       </div>
                       <div className="flex items-center space-x-3">
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
@@ -456,13 +454,13 @@ function DashboardContent() {
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
                           3
                         </div>
-                        <span>Wait for company invitation</span>
+                        <span>Contact company owner to be added</span>
                       </div>
                       <div className="flex items-center space-x-3">
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
                           4
                         </div>
-                        <span>Accept invitation to join company</span>
+                        <span>Owner adds you by name to company</span>
                       </div>
                       <div className="flex items-center space-x-3">
                         <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">

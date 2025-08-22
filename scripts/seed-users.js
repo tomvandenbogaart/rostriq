@@ -1,7 +1,8 @@
 // Seed script to create test users using Supabase client
-// This uses the proper Supabase auth flow and the new company invitations system
+// This creates a company owner and sets up the company for direct employee management
 
 import { createClient } from '@supabase/supabase-js'
+import { randomUUID } from 'crypto'
 
 const supabaseUrl = 'http://127.0.0.1:54331'
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
@@ -41,7 +42,7 @@ async function seedUsers() {
       console.log('User ID:', tomUser.user?.id)
     }
 
-    console.log('✅ Only creating Tom and company setup for testing')
+    console.log('✅ Only creating Tom and company setup for direct employee management testing')
 
     // Wait a moment for user profiles to be created by trigger
     console.log('Waiting for database trigger to create user profiles...')
@@ -237,17 +238,28 @@ async function seedUsers() {
 
     console.log('✅ Company functions created and assigned')
 
+    console.log('✅ Company setup complete - ready for direct employee management!')
+    console.log('💡 Use the Employee Management interface in Company Settings to add employees by name')
+
     // Sign out Tom
     await supabase.auth.signOut()
     console.log('Signed out Tom')
 
-    console.log('✅ Company setup complete - ready for testing invitations')
+    console.log('✅ Company setup complete - ready for direct employee management testing')
 
     console.log('\n🎉 Seed completed successfully!')
     console.log('You can now sign in with:')
     console.log('- tom@softomic.nl (password: password123) - Company Owner')
-    console.log('\nCompany setup complete - ready for testing the invitation system')
-    console.log('Use the company invitations manager to send invitations to new users')
+    console.log('\nCompany setup complete with:')
+    console.log('- 8 company functions created')
+    console.log('- Tom assigned as company owner to Software Development')
+    console.log('- Ready for direct employee management (no invitations system)')
+    console.log('\n💡 How to add employees:')
+    console.log('1. Sign in as Tom')
+    console.log('2. Go to Company Settings > Employee Management')
+    console.log('3. Add employees directly by name (e.g., "Sarah Johnson")')
+    console.log('4. System will create local accounts automatically')
+    console.log('5. No email validation required!')
 
   } catch (error) {
     console.error('Unexpected error:', error)

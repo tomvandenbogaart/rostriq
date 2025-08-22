@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Company, CreateCompany, UpdateCompany, CompanyMember, CreateCompanyMember, DailySchedule } from '@/types/database';
+import { UserProfileService } from './user-profile-service';
 
 // Type for the RPC function result
 interface TeamMemberRPCResult {
@@ -17,27 +18,21 @@ interface TeamMemberRPCResult {
   working_schedule_notes?: string;
   daily_schedule?: DailySchedule;
   weekly_hours?: number;
-  is_pending_invitation: boolean;
   user_email?: string;
   user_first_name?: string;
   user_last_name?: string;
   user_avatar_url?: string;
-  invitation_data?: unknown; // JSONB data for pending invitations - will be cast to CompanyInvitation
 }
 
 export class CompanyService {
   // Create a new company
   static async createCompany(companyData: CreateCompany, userId: string): Promise<{ company: Company | null; error: string | null }> {
     try {
-      // First get the user profile ID
-      const { data: userProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
+      // First get the user profile ID using the centralized service with retry logic
+      const { userProfile, error: profileError } = await UserProfileService.getUserProfile(userId);
 
       if (profileError || !userProfile) {
-        return { company: null, error: 'User profile not found' };
+        return { company: null, error: profileError || 'User profile not found' };
       }
 
       // Create the company
@@ -97,15 +92,11 @@ export class CompanyService {
   // Get companies for a user
   static async getUserCompanies(authUserId: string): Promise<{ companies: Company[]; error: string | null }> {
     try {
-      // First get the user profile ID
-      const { data: userProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', authUserId)
-        .single();
+      // First get the user profile ID using the centralized service with retry logic
+      const { userProfile, error: profileError } = await UserProfileService.getUserProfile(authUserId);
 
       if (profileError || !userProfile) {
-        return { companies: [], error: 'User profile not found' };
+        return { companies: [], error: profileError || 'User profile not found' };
       }
 
       // Get companies where the user is a member
@@ -174,15 +165,11 @@ export class CompanyService {
   // Check if user is company owner
   static async isCompanyOwner(companyId: string, authUserId: string): Promise<{ isOwner: boolean; error: string | null }> {
     try {
-      // First get the user profile ID
-      const { data: userProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', authUserId)
-        .single();
+      // First get the user profile ID using the centralized service with retry logic
+      const { userProfile, error: profileError } = await UserProfileService.getUserProfile(authUserId);
 
       if (profileError || !userProfile) {
-        return { isOwner: false, error: 'User profile not found' };
+        return { isOwner: false, error: profileError || 'User profile not found' };
       }
 
       const { data: member, error } = await supabase
@@ -203,37 +190,7 @@ export class CompanyService {
     }
   }
 
-  // Check if user can view invitations (is owner or admin)
-  static async canViewInvitations(companyId: string, authUserId: string): Promise<{ canView: boolean; error: string | null }> {
-    try {
-      // First get the user profile ID
-      const { data: userProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', authUserId)
-        .single();
 
-      if (profileError || !userProfile) {
-        return { canView: false, error: 'User profile not found' };
-      }
-
-      const { data: member, error } = await supabase
-        .from('company_members')
-        .select('role')
-        .eq('company_id', companyId)
-        .eq('user_id', userProfile.id)
-        .eq('is_active', true)
-        .single();
-
-      if (error) {
-        return { canView: false, error: error.message };
-      }
-
-      return { canView: member.role === 'owner' || member.role === 'admin', error: null };
-    } catch {
-      return { canView: false, error: 'Failed to check permissions' };
-    }
-  }
 
   // Get company members
   static async getCompanyMembers(companyId: string): Promise<{ members: CompanyMember[]; error: string | null }> {
@@ -310,8 +267,7 @@ export class CompanyService {
         working_schedule_notes: member.working_schedule_notes,
         daily_schedule: member.daily_schedule,
         weekly_hours: member.weekly_hours,
-        is_pending_invitation: member.is_pending_invitation,
-        invitation_data: member.invitation_data, // Include invitation data for pending invitations
+
         user_profile: {
           email: member.user_email || 'No email available',
           first_name: member.user_first_name,
@@ -327,43 +283,7 @@ export class CompanyService {
     }
   }
 
-  // Cancel a pending invitation
-  static async cancelInvitation(companyId: string, invitationId: string, cancelledByUserProfileId: string): Promise<{ success: boolean; error: string | null }> {
-    try {
-      // Check if the user trying to cancel is an owner or admin
-      const { data: currentUserMember, error: memberCheckError } = await supabase
-        .from('company_members')
-        .select('role')
-        .eq('company_id', companyId)
-        .eq('user_id', cancelledByUserProfileId)
-        .eq('is_active', true)
-        .single();
 
-      if (memberCheckError || !currentUserMember) {
-        return { success: false, error: 'User not found in company' };
-      }
-
-      if (currentUserMember.role !== 'owner' && currentUserMember.role !== 'admin') {
-        return { success: false, error: 'Only owners and admins can cancel invitations' };
-      }
-
-      // Cancel the invitation by setting status to expired
-      const { error: cancelError } = await supabase
-        .from('company_invitations')
-        .update({ status: 'expired' })
-        .eq('id', invitationId)
-        .eq('company_id', companyId);
-
-      if (cancelError) {
-        return { success: false, error: cancelError.message };
-      }
-
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Error in cancelInvitation:', error);
-      return { success: false, error: 'Failed to cancel invitation' };
-    }
-  }
 
   // Remove a team member from the company
   static async removeTeamMember(companyId: string, teamMemberUserId: string, removedByUserProfileId: string): Promise<{ success: boolean; error: string | null }> {

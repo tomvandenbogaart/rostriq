@@ -230,7 +230,7 @@ export function WeeklyScheduleView({
                 • Create your own company to start scheduling
               </div>
               <div className="text-xs text-muted-foreground">
-                • Wait for a company invitation
+                • Contact company owner to be added
               </div>
             </div>
           </div>

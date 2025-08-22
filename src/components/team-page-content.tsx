@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserPlus } from 'lucide-react';
 import { TeamDirectory } from './team-directory';
-import { InvitationDialog } from './invitation-dialog';
+
 
 import type { CompanyMember, Company } from '@/types/database';
 
@@ -38,17 +38,9 @@ export function TeamPageContent({
   onTeamMembersChange,
   company
 }: TeamPageContentProps) {
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-
-  const handleInviteMember = () => {
-    setIsInviteDialogOpen(true);
-  };
-
-  const handleInvitationSent = () => {
-    // Refresh team members when an invitation is sent
-    if (onTeamMembersChange) {
-      onTeamMembersChange();
-    }
+  const handleManageEmployees = () => {
+    // Navigate to company settings where employee management is located
+    window.location.href = '/company-settings';
   };
 
   return (
@@ -58,14 +50,14 @@ export function TeamPageContent({
         <div>
           <h1 className="text-3xl font-bold">Team Management</h1>
           <p className="text-muted-foreground">
-            Manage your team members, roles, working schedules, and pending invitations
+            Manage your team members, roles, and working schedules
           </p>
         </div>
         {!viewOnly && (
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={handleInviteMember}>
+            <Button size="sm" onClick={handleManageEmployees}>
               <UserPlus className="h-4 w-4 mr-2" />
-              Invite Member
+              Manage Employees
             </Button>
           </div>
         )}
@@ -80,24 +72,19 @@ export function TeamPageContent({
         
         <div className="text-center p-6 bg-card rounded-lg border shadow-sm">
           <div className="text-4xl font-bold mb-2">
-            {members?.filter(m => !m.is_pending_invitation && !m.is_part_time).length || 0}
+            {members?.filter(m => !m.is_part_time).length || 0}
           </div>
           <div className="text-sm text-muted-foreground">Full-time</div>
         </div>
         
         <div className="text-center p-6 bg-card rounded-lg border shadow-sm">
           <div className="text-4xl font-bold mb-2">
-            {members?.filter(m => !m.is_pending_invitation && m.is_part_time).length || 0}
+            {members?.filter(m => m.is_part_time).length || 0}
           </div>
           <div className="text-sm text-muted-foreground">Part-time</div>
         </div>
 
-        <div className="text-center p-6 bg-card rounded-lg border shadow-sm">
-          <div className="text-4xl font-bold mb-2 text-yellow-600">
-            {members?.filter(m => m.is_pending_invitation).length || 0}
-          </div>
-          <div className="text-sm text-muted-foreground">Pending</div>
-        </div>
+
       </div>
 
       {/* Team Directory */}
@@ -113,14 +100,7 @@ export function TeamPageContent({
         />
       </div>
 
-      {/* Invitation Dialog */}
-      <InvitationDialog
-        isOpen={isInviteDialogOpen}
-        onClose={() => setIsInviteDialogOpen(false)}
-        companyId={companyId}
-        company={company}
-        onInvitationSent={handleInvitationSent}
-      />
+
     </div>
   );
 }

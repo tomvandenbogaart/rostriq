@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { supabase } from '@/lib/supabase'
 import { CompanyService } from '@/lib/company-service'
+import { UserProfileService } from '@/lib/user-profile-service'
 import { 
   ChevronDown, 
   Settings, 
@@ -34,7 +35,7 @@ export function SideMenu() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0)
+
   const [canAccessTeam, setCanAccessTeam] = useState(false)
   const [canAccessCompanySettings, setCanAccessCompanySettings] = useState(false)
   const [hasCompany, setHasCompany] = useState(false)
@@ -71,7 +72,6 @@ export function SideMenu() {
           })
         } else {
           setUser(null)
-          setPendingInvitationsCount(0)
           setCanAccessTeam(false)
           setCanAccessCompanySettings(false)
           setHasCompany(false)
@@ -83,11 +83,10 @@ export function SideMenu() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Fetch pending invitations count when user is authenticated
+  // Fetch user permissions when user is authenticated
   useEffect(() => {
-    const fetchPendingInvitationsCount = async () => {
+    const fetchUserPermissions = async () => {
       if (!user) {
-        setPendingInvitationsCount(0)
         setCanAccessTeam(false)
         setCanAccessCompanySettings(false)
         setHasCompany(false)
@@ -95,17 +94,17 @@ export function SideMenu() {
         return
       }
 
-      try {
-        // Get user profile to check role first
-        const { data: userProfileData, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
 
-        if (profileError) {
+
+      try {
+        // Get user profile to check role first using the centralized service
+        const { userProfile: userProfileData, error: profileError } = await UserProfileService.getUserProfile(user.id);
+
+        if (profileError || !userProfileData) {
           console.error('Error fetching user profile:', profileError);
           setUserRole(null);
+          // Don't proceed with other operations if we can't get the user profile
+          return;
         } else {
           setUserRole(userProfileData.role);
         }
@@ -113,7 +112,6 @@ export function SideMenu() {
         // Get user's companies
         const { companies, error } = await CompanyService.getUserCompanies(user.id)
         if (error || !companies || companies.length === 0) {
-          setPendingInvitationsCount(0)
           setCanAccessTeam(false)
           setCanAccessCompanySettings(false)
           setHasCompany(false)
@@ -126,32 +124,26 @@ export function SideMenu() {
         // Get count for the first company (assuming user is in one company)
         const company = companies[0]
         
-        // Check if user can view invitations (is owner or admin)
-        const { canView } = await CompanyService.canViewInvitations(company.id, user.id)
-        if (!canView) {
-          setPendingInvitationsCount(0)
+        // Check if user can access team management (is owner or admin)
+        const { data: currentUserMember } = await supabase
+          .from('company_members')
+          .select('role')
+          .eq('company_id', company.id)
+          .eq('user_id', userProfileData.id)
+          .eq('is_active', true)
+          .single();
+        
+        if (currentUserMember && ['owner', 'admin'].includes(currentUserMember.role)) {
+          setCanAccessTeam(true)
+        } else {
           setCanAccessTeam(false)
-          setCanAccessCompanySettings(false)
-          return
         }
-
-        // User can access team management
-        setCanAccessTeam(true)
 
         // Check if user can access company settings (must be owner)
         const { isOwner } = await CompanyService.isCompanyOwner(company.id, user.id)
         setCanAccessCompanySettings(isOwner)
-
-        // Get pending invitations count using the new invitations service
-        const { CompanyInvitationsService } = await import('@/lib/company-invitations-service')
-        const invitationsService = new CompanyInvitationsService()
-        const { data: invitations } = await invitationsService.getCompanyInvitations(company.id)
-        
-        const pendingCount = invitations?.filter(inv => inv.status === 'pending' && new Date(inv.expires_at) > new Date()).length || 0
-        setPendingInvitationsCount(pendingCount)
       } catch (error) {
-        console.error('Error fetching pending invitations count:', error)
-        setPendingInvitationsCount(0)
+        console.error('Error fetching user permissions:', error)
         setCanAccessTeam(false)
         setCanAccessCompanySettings(false)
         setHasCompany(false)
@@ -159,18 +151,7 @@ export function SideMenu() {
       }
     }
 
-    fetchPendingInvitationsCount()
-
-    // Listen for custom events to refresh the count
-    const handleRefreshCount = () => {
-      fetchPendingInvitationsCount()
-    }
-
-    window.addEventListener('refreshInvitationsCount', handleRefreshCount)
-    
-    return () => {
-      window.removeEventListener('refreshInvitationsCount', handleRefreshCount)
-    }
+    fetchUserPermissions()
   }, [user])
 
   const handleSignOut = async () => {
@@ -282,14 +263,6 @@ export function SideMenu() {
                       <Users className="h-5 w-5" />
                       <span>Team</span>
                     </div>
-                    {pendingInvitationsCount > 0 && (
-                      <Badge 
-                        variant="destructive" 
-                        className="rounded-full px-2 py-0 text-white text-xs font-medium"
-                      >
-                        {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
-                      </Badge>
-                    )}
                   </Link>
                 )}
 
