@@ -64,7 +64,7 @@ export function EmptyDailyScheduleView({
                 Time
               </div>
               <div className="flex-1 py-1 px-1 font-medium text-xs border-r border-border bg-muted/30 text-center">
-                Schedule
+                No Company Functions
               </div>
             </div>
 

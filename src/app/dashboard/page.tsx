@@ -9,12 +9,15 @@ import { CompanyFunctionsService } from '@/lib/company-functions-service'
 import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Company, UserProfile, CompanyFunctionView } from '@/types/database'
+import { Company, UserProfile, CompanyFunctionView, EmployeeFunctionView, CompanyMember } from '@/types/database'
 import { RosterDisplay } from '@/components/roster-display'
 import { MonthlyScheduleView } from '@/components/monthly-schedule-view'
 import { EmptyScheduleView } from '@/components/empty-schedule-view'
 import { EmptyDailyScheduleView } from '@/components/empty-daily-schedule-view'
 import { WeeklyScheduleView } from '@/components/weekly-schedule-view'
+import { CompanyWeeklyScheduleView } from '@/components/company-weekly-schedule-view'
+import { CompanyDailyScheduleView } from '@/components/company-daily-schedule-view'
+import { CompanyMonthlyScheduleView } from '@/components/company-monthly-schedule-view'
 import { X } from 'lucide-react'
 
 interface User {
@@ -32,6 +35,8 @@ function DashboardContent() {
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const [companyFunctions, setCompanyFunctions] = useState<CompanyFunctionView[]>([])
   const [functionsLoading, setFunctionsLoading] = useState(false)
+  const [employees, setEmployees] = useState<EmployeeFunctionView[]>([])
+  const [teamMembers, setTeamMembers] = useState<CompanyMember[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlRole = searchParams.get('role')
@@ -50,6 +55,23 @@ function DashboardContent() {
       console.error('Error fetching company functions:', error)
     } finally {
       setFunctionsLoading(false)
+    }
+  }
+
+  // Fetch employees and team members for the company
+  const fetchCompanyData = async (companyId: string) => {
+    if (!companyId) return
+    
+    try {
+      const [employeesData, teamMembersData] = await Promise.all([
+        CompanyFunctionsService.getAllEmployeesWithFunctions(companyId),
+        CompanyService.getCompanyTeamMembers(companyId),
+      ])
+      
+      setEmployees(employeesData)
+      setTeamMembers(teamMembersData.members || [])
+    } catch (error) {
+      console.error('Error fetching company data:', error)
     }
   }
 
@@ -103,8 +125,11 @@ function DashboardContent() {
         
         if (companies && companies.length > 0) {
           setUserCompany(companies[0])
-          // Fetch company functions for the company
-          await fetchCompanyFunctions(companies[0].id)
+          // Fetch company functions and data for the company
+          await Promise.all([
+            fetchCompanyFunctions(companies[0].id),
+            fetchCompanyData(companies[0].id)
+          ])
         } else if (userProfileData.role === 'owner') {
           // Owner without companies should go to setup
           console.log('User is owner but has no companies, redirecting to setup-company');
@@ -121,8 +146,11 @@ function DashboardContent() {
           const { company } = await CompanyService.getCompanyById(urlCompany)
           if (company) {
             setUserCompany(company)
-            // Fetch company functions for the URL company
-            await fetchCompanyFunctions(company.id)
+            // Fetch company functions and data for the URL company
+            await Promise.all([
+              fetchCompanyFunctions(company.id),
+              fetchCompanyData(company.id)
+            ])
           }
         }
 
@@ -269,16 +297,32 @@ function DashboardContent() {
                         Refresh
                       </Button>
                     </div>
-                    <MonthlyScheduleView 
-                      functions={companyFunctions}
+                    <CompanyMonthlyScheduleView 
                       currentMonth={new Date()}
                       onMonthChange={() => {}}
+                      companyFunctions={companyFunctions}
+                      employees={employees}
+                      teamMembers={teamMembers}
                     />
                   </>
                 )}
               </div>
+            ) : viewMode === 'weekly' ? (
+              <CompanyWeeklyScheduleView 
+                currentWeek={new Date()}
+                onWeekChange={() => {}}
+                companyFunctions={companyFunctions}
+                employees={employees}
+                teamMembers={teamMembers}
+              />
             ) : (
-              <RosterDisplay companyId={userCompany.id} />
+              <CompanyDailyScheduleView 
+                currentDate={new Date()}
+                onDateChange={() => {}}
+                companyFunctions={companyFunctions}
+                employees={employees}
+                teamMembers={teamMembers}
+              />
             )
           ) : (
             // Show empty schedule views instead of just a message

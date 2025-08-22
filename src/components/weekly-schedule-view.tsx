@@ -12,13 +12,13 @@ interface WeeklyScheduleViewProps {
 }
 
 const DAYS_OF_WEEK = [
-  { value: 'monday', label: 'Monday', short: 'Mon' },
-  { value: 'tuesday', label: 'Tuesday', short: 'Tue' },
-  { value: 'wednesday', label: 'Wednesday', short: 'Wed' },
-  { value: 'thursday', label: 'Thursday', short: 'Thu' },
-  { value: 'friday', label: 'Friday', short: 'Fri' },
-  { value: 'saturday', label: 'Saturday', short: 'Sat' },
-  { value: 'sunday', label: 'Sunday', short: 'Sun' },
+  { value: 'monday', label: 'Monday', shortName: 'Mon' },
+  { value: 'tuesday', label: 'Tuesday', shortName: 'Tue' },
+  { value: 'wednesday', label: 'Wednesday', shortName: 'Wed' },
+  { value: 'thursday', label: 'Thursday', shortName: 'Thu' },
+  { value: 'friday', label: 'Friday', shortName: 'Fri' },
+  { value: 'saturday', label: 'Saturday', shortName: 'Sat' },
+  { value: 'sunday', label: 'Sunday', shortName: 'Sun' },
 ];
 
 const TIME_SLOTS = Array.from({ length: 17 }, (_, i) => {
