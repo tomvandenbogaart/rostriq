@@ -13,6 +13,8 @@ export function SignUpForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   
@@ -80,10 +82,29 @@ export function SignUpForm() {
       return
     }
 
+    // Validate required fields
+    if (!firstName.trim()) {
+      toast.error("First name is required")
+      setIsLoading(false)
+      return
+    }
+
+    if (!lastName.trim()) {
+      toast.error("Last name is required")
+      setIsLoading(false)
+      return
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+          }
+        }
       })
 
       if (error) {
@@ -133,6 +154,8 @@ export function SignUpForm() {
     setEmail('')
     setPassword('')
     setConfirmPassword('')
+    setFirstName('')
+    setLastName('')
     
     if (invitationToken) {
       // If this was an invitation signup, redirect back to join page
@@ -157,6 +180,28 @@ export function SignUpForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSignUp} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="firstName">First Name</Label>
+            <Input
+              id="firstName"
+              type="text"
+              placeholder="Enter your first name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Last Name</Label>
+            <Input
+              id="lastName"
+              type="text"
+              placeholder="Enter your last name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
