@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-
 import { CompanyService } from '@/lib/company-service'
 import { CompanyFunctionsService } from '@/lib/company-functions-service'
 import { Header } from '@/components/header'
@@ -15,7 +14,7 @@ import { MonthlyScheduleView } from '@/components/monthly-schedule-view'
 import { EmptyScheduleView } from '@/components/empty-schedule-view'
 import { EmptyDailyScheduleView } from '@/components/empty-daily-schedule-view'
 import { WeeklyScheduleView } from '@/components/weekly-schedule-view'
-import { X } from 'lucide-react'
+import { Calendar, Clock } from 'lucide-react'
 
 interface User {
   id: string
@@ -23,7 +22,7 @@ interface User {
   created_at: string
 }
 
-function DashboardContent() {
+function RostersContent() {
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,9 +32,6 @@ function DashboardContent() {
   const [companyFunctions, setCompanyFunctions] = useState<CompanyFunctionView[]>([])
   const [functionsLoading, setFunctionsLoading] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const urlRole = searchParams.get('role')
-  const urlCompany = searchParams.get('company')
 
   // Fetch company functions for the company
   const fetchCompanyFunctions = async (companyId: string) => {
@@ -69,21 +65,6 @@ function DashboardContent() {
           created_at: currentUser.created_at,
         })
 
-        // If user just joined a company, wait a bit for the database to sync
-        const justJoined = searchParams.get('joined') === 'true'
-        if (justJoined) {
-          // Wait 1 second for database to sync
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        }
-
-        // Check if user has companies first (this bypasses RLS issues)
-        console.log('Checking for user companies...')
-        const { companies, error: companiesError } = await CompanyService.getUserCompanies(currentUser.id)
-        if (companiesError) {
-          console.error('Error fetching user companies:', companiesError)
-        }
-        console.log('Found companies:', companies)
-        
         // Get user profile to check role first
         const { data: userProfileData, error: profileError } = await supabase
           .from('user_profiles')
@@ -101,29 +82,18 @@ function DashboardContent() {
         setUserProfile(userProfileData);
         setUserRole(userProfileData.role);
         
+        // Check if user has companies
+        console.log('Checking for user companies...')
+        const { companies, error: companiesError } = await CompanyService.getUserCompanies(currentUser.id)
+        if (companiesError) {
+          console.error('Error fetching user companies:', companiesError)
+        }
+        console.log('Found companies:', companies)
+        
         if (companies && companies.length > 0) {
           setUserCompany(companies[0])
           // Fetch company functions for the company
           await fetchCompanyFunctions(companies[0].id)
-        } else if (userProfileData.role === 'owner') {
-          // Owner without companies should go to setup
-          console.log('User is owner but has no companies, redirecting to setup-company');
-          router.push('/setup-company')
-          return
-        } else {
-          // Regular user without companies can stay on dashboard
-          // They might be waiting for an invitation or have a different flow
-          console.log('User is not an owner and has no companies, staying on dashboard')
-        }
-
-        // Handle URL company parameter if provided
-        if (urlCompany) {
-          const { company } = await CompanyService.getCompanyById(urlCompany)
-          if (company) {
-            setUserCompany(company)
-            // Fetch company functions for the URL company
-            await fetchCompanyFunctions(company.id)
-          }
         }
 
         setLoading(false)
@@ -134,18 +104,7 @@ function DashboardContent() {
     }
 
     getUser()
-  }, [router, searchParams, urlCompany])
-
-
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut()
-      router.push('/')
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
-  }
+  }, [router])
 
   if (loading) {
     return (
@@ -154,7 +113,7 @@ function DashboardContent() {
         <main className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading dashboard...</p>
+            <p className="text-muted-foreground">Loading rosters...</p>
           </div>
         </main>
       </>
@@ -170,8 +129,6 @@ function DashboardContent() {
       <Header />
       <main className="min-h-screen py-8">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-
-
           {/* Schedule Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -212,7 +169,7 @@ function DashboardContent() {
                   Monthly
                 </Button>
               </div>
-              {userRole === 'owner' && (
+              {userCompany && userRole === 'owner' && (
                 <Button>
                   Create New Roster
                 </Button>
@@ -300,149 +257,26 @@ function DashboardContent() {
             )
           )}
 
-          {/* Help Message for Users Without Company */}
+          {/* Help Message for Owners Without Company */}
           {!userCompany && userRole === 'owner' && (
             <Card>
-              <CardContent className="text-center py-8">
-                <div className="text-muted-foreground mb-4">
-                  Company profile not set up yet
-                </div>
-                <Button onClick={() => router.push('/setup-company')}>
-                  Set Up Company
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Debug Information */}
-          {process.env.NODE_ENV === 'development' && (
-            <Card>
               <CardHeader>
-                <CardTitle>Debug Information</CardTitle>
-                <CardDescription>Current user state for debugging</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Set Up Your Company
+                </CardTitle>
+                <CardDescription>
+                  Create your company to start using RostrIQ for scheduling
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div><strong>User ID:</strong> {user?.id}</div>
-                  <div><strong>Email:</strong> {user?.email}</div>
-                  <div><strong>Role:</strong> {userRole}</div>
-                  <div><strong>Has Company:</strong> {userCompany ? 'Yes' : 'No'}</div>
-                  {userCompany && (
-                    <div><strong>Company Name:</strong> {userCompany.name}</div>
-                  )}
-                  <div><strong>Profile ID:</strong> {userProfile?.id}</div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-
-
-
-          {/* Getting Started Card */}
-          {!localStorage.getItem('gettingStartedDismissed') && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Getting Started</CardTitle>
-                    <CardDescription>
-                      {userRole === 'owner' 
-                        ? 'Complete these steps to set up your company' 
-                        : 'Complete these steps to get started'
-                      }
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      localStorage.setItem('gettingStartedDismissed', 'true')
-                      window.location.reload()
-                    }}
-                    className="h-8 w-8 p-0"
-                  >
-                    <X className="h-4 w-4" />
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You need to set up your company profile to start creating schedules and managing your team.
+                  </p>
+                  <Button onClick={() => router.push('/setup-company')}>
+                    Set Up Company
                   </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">
-                      ✓
-                    </div>
-                    <span>Create your account</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">
-                      ✓
-                    </div>
-                    <span>Select your role</span>
-                  </div>
-                  {userRole === 'owner' ? (
-                    <>
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium ${
-                          userCompany ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {userCompany ? '✓' : '3'}
-                        </div>
-                        <span>Set up company profile</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          4
-                        </div>
-                        <span>Invite team members</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          5
-                        </div>
-                        <span>Create company functions</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          6
-                        </div>
-                        <span>Assign employees to functions</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          7
-                        </div>
-                        <span>Set up working schedules</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          8
-                        </div>
-                        <span>Create your first roster</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          3
-                        </div>
-                        <span>Wait for company invitation</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          4
-                        </div>
-                        <span>Accept invitation to join company</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                          5
-                        </div>
-                        <span>View your schedule and working hours</span>
-                      </div>
-                    </>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -453,7 +287,7 @@ function DashboardContent() {
   )
 }
 
-export default function Dashboard() {
+export default function Rosters() {
   return (
     <Suspense fallback={
       <>
@@ -461,12 +295,12 @@ export default function Dashboard() {
         <main className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading dashboard...</p>
+            <p className="text-muted-foreground">Loading rosters...</p>
           </div>
         </main>
       </>
     }>
-      <DashboardContent />
+      <RostersContent />
     </Suspense>
   )
 }

@@ -23,6 +23,8 @@ export function Header() {
   const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0)
   const [canAccessTeam, setCanAccessTeam] = useState(false)
   const [canAccessCompanySettings, setCanAccessCompanySettings] = useState(false)
+  const [hasCompany, setHasCompany] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -57,6 +59,8 @@ export function Header() {
           setPendingInvitationsCount(0)
           setCanAccessTeam(false)
           setCanAccessCompanySettings(false)
+          setHasCompany(false)
+          setUserRole(null)
         }
       }
     )
@@ -71,18 +75,38 @@ export function Header() {
         setPendingInvitationsCount(0)
         setCanAccessTeam(false)
         setCanAccessCompanySettings(false)
+        setHasCompany(false)
+        setUserRole(null)
         return
       }
 
       try {
+        // Get user profile to check role first
+        const { data: userProfileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+          setUserRole(null);
+        } else {
+          setUserRole(userProfileData.role);
+        }
+
         // Get user's companies
         const { companies, error } = await CompanyService.getUserCompanies(user.id)
         if (error || !companies || companies.length === 0) {
           setPendingInvitationsCount(0)
           setCanAccessTeam(false)
           setCanAccessCompanySettings(false)
+          setHasCompany(false)
           return
         }
+
+        // User has a company
+        setHasCompany(true)
 
         // Get count for the first company (assuming user is in one company)
         const company = companies[0]
@@ -115,6 +139,8 @@ export function Header() {
         setPendingInvitationsCount(0)
         setCanAccessTeam(false)
         setCanAccessCompanySettings(false)
+        setHasCompany(false)
+        setUserRole(null)
       }
     }
 
@@ -200,40 +226,46 @@ export function Header() {
                 >
                   Dashboard
                 </Link>
+                {/* Show Rosters for everyone - it will show empty schedules if no company */}
                 <Link 
                   href="/rosters" 
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Rosters
                 </Link>
-                {canAccessTeam && (
-                  <Link 
-                    href="/team" 
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative"
-                  >
-                    Team
-                    {pendingInvitationsCount > 0 && (
-                      <Badge 
-                        variant="destructive" 
-                        className="absolute -top-2 -right-3 rounded-full px-1 py-0 text-white text-xs font-medium"
+                {/* Only show company-related navigation if user has a company or is an owner */}
+                {(hasCompany || userRole === 'owner') && (
+                  <>
+                    {canAccessTeam && (
+                      <Link 
+                        href="/team" 
+                        className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative"
                       >
-                        {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
-                      </Badge>
+                        Team
+                        {pendingInvitationsCount > 0 && (
+                          <Badge 
+                            variant="destructive" 
+                            className="absolute -top-2 -right-3 rounded-full px-1 py-0 text-white text-xs font-medium"
+                          >
+                            {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
+                          </Badge>
+                        )}
+                      </Link>
                     )}
-                  </Link>
+                    <Link 
+                      href="/reports" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Reports
+                    </Link>
+                    <Link 
+                      href="/demo-functions" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Demos
+                    </Link>
+                  </>
                 )}
-                <Link 
-                  href="/reports" 
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Reports
-                </Link>
-                <Link 
-                  href="/demo-functions" 
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Demos
-                </Link>
 
               </div>
             )}
@@ -387,32 +419,44 @@ export function Header() {
                   >
                     Rosters
                   </Link>
-                  {canAccessTeam && (
-                    <Link
-                      href="/team"
-                      className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors relative"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>Team</span>
-                        {pendingInvitationsCount > 0 && (
-                          <Badge 
-                            variant="destructive"
-                            className="rounded-full px-1 py-0 text-white text-xs font-medium"
-                          >
-                            {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
-                          </Badge>
-                        )}
-                      </div>
-                    </Link>
+                  {/* Only show company-related navigation if user has a company or is an owner */}
+                  {(hasCompany || userRole === 'owner') && (
+                    <>
+                      <Link
+                        href="/reports"
+                        className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        Reports
+                      </Link>
+                      <Link
+                        href="/demo-functions"
+                        className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        Demos
+                      </Link>
+                      {canAccessTeam && (
+                        <Link
+                          href="/team"
+                          className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors relative"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>Team</span>
+                            {pendingInvitationsCount > 0 && (
+                              <Badge 
+                                variant="destructive"
+                                className="rounded-full px-1 py-0 text-white text-xs font-medium"
+                              >
+                                {pendingInvitationsCount > 99 ? '99+' : pendingInvitationsCount}
+                              </Badge>
+                            )}
+                          </div>
+                        </Link>
+                      )}
+                    </>
                   )}
-                  <Link
-                    href="/reports"
-                    className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Reports
-                  </Link>
 
                   <div className="border-t my-1" />
                   <Link

@@ -45,71 +45,108 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  
+  /* Light theme - Enhanced contrast and vibrant colors */
+  --background: oklch(0.99 0.005 240);
+  --foreground: oklch(0.12 0.01 240);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.12 0.01 240);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.12 0.01 240);
+  
+  /* Primary - Deep blue with better contrast */
+  --primary: oklch(0.25 0.12 240);
+  --primary-foreground: oklch(0.98 0.005 240);
+  
+  /* Secondary - Warm gray with better contrast */
+  --secondary: oklch(0.94 0.01 60);
+  --secondary-foreground: oklch(0.25 0.01 60);
+  
+  /* Muted - Enhanced contrast */
+  --muted: oklch(0.96 0.005 240);
+  --muted-foreground: oklch(0.45 0.01 240);
+  
+  /* Accent - Vibrant blue */
+  --accent: oklch(0.92 0.08 240);
+  --accent-foreground: oklch(0.25 0.12 240);
+  
+  /* Destructive - Enhanced red */
+  --destructive: oklch(0.65 0.25 25);
+  --destructive-foreground: oklch(0.98 0.005 240);
+  
+  /* Borders and inputs - Better contrast */
+  --border: oklch(0.88 0.01 240);
+  --input: oklch(0.96 0.005 240);
+  --ring: oklch(0.65 0.12 240);
+  
+  /* Chart colors - More vibrant and distinct */
+  --chart-1: oklch(0.65 0.25 240);
+  --chart-2: oklch(0.65 0.18 180);
+  --chart-3: oklch(0.65 0.15 120);
+  --chart-4: oklch(0.65 0.22 60);
+  --chart-5: oklch(0.65 0.20 300);
+  
+  /* Sidebar - Enhanced contrast */
+  --sidebar: oklch(0.98 0.005 240);
+  --sidebar-foreground: oklch(0.12 0.01 240);
+  --sidebar-primary: oklch(0.25 0.12 240);
+  --sidebar-primary-foreground: oklch(0.98 0.005 240);
+  --sidebar-accent: oklch(0.94 0.01 240);
+  --sidebar-accent-foreground: oklch(0.25 0.01 240);
+  --sidebar-border: oklch(0.88 0.01 240);
+  --sidebar-ring: oklch(0.65 0.12 240);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Dark theme - Enhanced contrast and vibrant colors */
+  --background: oklch(0.08 0.01 240);
+  --foreground: oklch(0.96 0.005 240);
+  --card: oklch(0.12 0.01 240);
+  --card-foreground: oklch(0.96 0.005 240);
+  --popover: oklch(0.12 0.01 240);
+  --popover-foreground: oklch(0.96 0.005 240);
+  
+  /* Primary - Bright blue for dark theme */
+  --primary: oklch(0.75 0.15 240);
+  --primary-foreground: oklch(0.08 0.01 240);
+  
+  /* Secondary - Darker gray with better contrast */
+  --secondary: oklch(0.18 0.01 240);
+  --secondary-foreground: oklch(0.88 0.005 240);
+  
+  /* Muted - Enhanced contrast */
+  --muted: oklch(0.18 0.01 240);
+  --muted-foreground: oklch(0.65 0.01 240);
+  
+  /* Accent - Bright blue accent */
+  --accent: oklch(0.18 0.01 240);
+  --accent-foreground: oklch(0.75 0.15 240);
+  
+  /* Destructive - Enhanced red for dark theme */
+  --destructive: oklch(0.75 0.25 25);
+  --destructive-foreground: oklch(0.08 0.01 240);
+  
+  /* Borders and inputs - Better contrast */
+  --border: oklch(0.25 0.01 240);
+  --input: oklch(0.18 0.01 240);
+  --ring: oklch(0.65 0.12 240);
+  
+  /* Chart colors - More vibrant for dark theme */
+  --chart-1: oklch(0.75 0.25 240);
+  --chart-2: oklch(0.75 0.18 180);
+  --chart-3: oklch(0.75 0.15 120);
+  --chart-4: oklch(0.75 0.22 60);
+  --chart-5: oklch(0.75 0.20 300);
+  
+  /* Sidebar - Enhanced contrast */
+  --sidebar: oklch(0.12 0.01 240);
+  --sidebar-foreground: oklch(0.96 0.005 240);
+  --sidebar-primary: oklch(0.75 0.15 240);
+  --sidebar-primary-foreground: oklch(0.08 0.01 240);
+  --sidebar-accent: oklch(0.18 0.01 240);
+  --sidebar-accent-foreground: oklch(0.88 0.005 240);
+  --sidebar-border: oklch(0.25 0.01 240);
+  --sidebar-ring: oklch(0.65 0.12 240);
 }
 
 @layer base {
@@ -118,6 +155,12 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Enhanced focus styles for better accessibility */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
   
   /* Smooth theme transitions for specific properties */
@@ -144,5 +187,35 @@
   /* Smooth icon transitions for theme toggle */
   .theme-toggle-icon {
     transition: transform 0.3s ease, opacity 0.2s ease;
+  }
+  
+  /* Enhanced selection colors */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.2);
+    color: hsl(var(--primary-foreground));
+  }
+  
+  ::-moz-selection {
+    background-color: hsl(var(--primary) / 0.2);
+    color: hsl(var(--primary-foreground));
+  }
+  
+  /* Enhanced scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }

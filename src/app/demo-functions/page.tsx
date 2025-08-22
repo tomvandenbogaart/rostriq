@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Users, Settings, Database } from 'lucide-react';
+import { Calendar, Users, Settings, Database, Palette } from 'lucide-react';
 
 const demoComponents = [
   {
@@ -50,6 +50,18 @@ const demoComponents = [
       'Query execution',
       'Schema validation',
       'Data integrity checks'
+    ]
+  },
+  {
+    title: 'Color Showcase',
+    description: 'Enhanced color scheme and contrast improvements',
+    icon: Palette,
+    href: '/demo-functions/color-showcase',
+    features: [
+      'Improved contrast ratios',
+      'Enhanced visual hierarchy',
+      'Better accessibility',
+      'Professional color palette'
     ]
   }
 ];
