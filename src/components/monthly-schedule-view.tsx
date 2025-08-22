@@ -5,16 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import type { DailySchedule } from '@/types/database';
+import type { CompanyFunctionView } from '@/types/database';
 
 interface MonthlyScheduleViewProps {
-  schedules: Array<{
-    id: string;
-    name: string;
-    daily_schedule: DailySchedule;
-    is_part_time: boolean;
-    working_schedule_notes?: string;
-  }>;
+  functions: CompanyFunctionView[];
   currentMonth?: Date;
   onMonthChange?: (date: Date) => void;
 }
@@ -35,7 +29,7 @@ const MONTHS = [
 ];
 
 export function MonthlyScheduleView({ 
-  schedules, 
+  functions, 
   currentMonth = new Date(),
   onMonthChange 
 }: MonthlyScheduleViewProps) {
@@ -91,43 +85,16 @@ export function MonthlyScheduleView({
     return days;
   }, [selectedMonth]);
 
-  // Get day name from date
-  const getDayName = (date: Date) => {
-    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    const dayIndex = date.getDay();
-    return dayNames[dayIndex === 0 ? 6 : dayIndex - 1]; // Convert to Monday-based
+  // Check if any functions are active on a specific date
+  const getActiveFunctions = (date: Date) => {
+    // For now, we'll show all functions as active every day
+    // In the future, this could be enhanced to show function-specific schedules
+    return functions.filter(func => func.is_active);
   };
 
-  // Check if someone is working on a specific date
-  const getWorkingEmployees = (date: Date) => {
-    const dayName = getDayName(date);
-    return schedules.filter(schedule => {
-      const daySchedule = schedule.daily_schedule[dayName as keyof DailySchedule];
-      return daySchedule?.enabled && daySchedule.start_time && daySchedule.end_time;
-    });
-  };
-
-  // Calculate working hours for a specific date
-  const calculateWorkingHours = (date: Date) => {
-    const dayName = getDayName(date);
-    let totalHours = 0;
-    
-    schedules.forEach(schedule => {
-      const daySchedule = schedule.daily_schedule[dayName as keyof DailySchedule];
-      if (daySchedule?.enabled && daySchedule.start_time && daySchedule.end_time) {
-        const startTime = new Date(`2024-01-01T${daySchedule.start_time}`);
-        const endTime = new Date(`2024-01-01T${daySchedule.end_time}`);
-        
-        let diff = endTime.getTime() - startTime.getTime();
-        if (diff < 0) {
-          diff += 24 * 60 * 60 * 1000; // Handle overnight shifts
-        }
-        
-        totalHours += diff / (1000 * 60 * 60);
-      }
-    });
-    
-    return totalHours;
+  // Calculate total functions for a specific date
+  const calculateTotalFunctions = (date: Date) => {
+    return getActiveFunctions(date).length;
   };
 
   // Navigate to previous month
@@ -151,11 +118,6 @@ export function MonthlyScheduleView({
     const now = new Date();
     setSelectedMonth(now);
     onMonthChange?.(now);
-  };
-
-  // Format time for display
-  const formatTime = (time: string) => {
-    return time.substring(0, 5); // Extract HH:MM from HH:MM:SS
   };
 
   return (
@@ -204,15 +166,15 @@ export function MonthlyScheduleView({
           
           {/* Calendar days */}
           {calendarDays.map((day, index) => {
-            const workingEmployees = getWorkingEmployees(day.date);
-            const totalHours = calculateWorkingHours(day.date);
+            const activeFunctions = getActiveFunctions(day.date);
+            const totalFunctions = calculateTotalFunctions(day.date);
             const isToday = day.date.toDateString() === new Date().toDateString();
             
             return (
               <div
                 key={index}
                 className={`
-                  min-h-[120px] p-2 border rounded-lg text-sm
+                  min-h-[160px] p-2 border rounded-lg text-sm
                   ${day.isCurrentMonth 
                     ? 'bg-background hover:bg-muted/50' 
                     : 'bg-muted/30 text-muted-foreground'
@@ -228,47 +190,40 @@ export function MonthlyScheduleView({
                   {day.date.getDate()}
                 </div>
                 
-                {/* Working schedule info */}
-                {day.isCurrentMonth && workingEmployees.length > 0 && (
+                {/* Company functions info */}
+                {day.isCurrentMonth && activeFunctions.length > 0 && (
                   <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">
-                      {workingEmployees.length} employee{workingEmployees.length !== 1 ? 's' : ''}
+                      {activeFunctions.length} function{activeFunctions.length !== 1 ? 's' : ''} active
                     </div>
                     
-                    {/* Show first few employees */}
-                    {workingEmployees.slice(0, 2).map((employee) => {
-                      const dayName = getDayName(day.date);
-                      const daySchedule = employee.daily_schedule[dayName as keyof DailySchedule];
-                      return (
-                        <div key={employee.id} className="text-xs">
-                          <div className="font-medium truncate">{employee.name}</div>
-                          <div className="text-muted-foreground">
-                            {formatTime(daySchedule!.start_time!)} - {formatTime(daySchedule!.end_time!)}
+                    {/* Show all functions with better layout */}
+                    <div className="max-h-24 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                      {activeFunctions.map((func) => (
+                        <div key={func.id} className="text-xs p-1 rounded bg-muted/20 border-l-2" style={{ borderLeftColor: func.color }}>
+                          <div className="font-medium truncate" style={{ color: func.color }}>
+                            {func.name}
+                          </div>
+                          <div className="text-muted-foreground text-[10px]">
+                            {func.assigned_employees_count} employee{func.assigned_employees_count !== 1 ? 's' : ''}
                           </div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                     
-                    {/* Show more employees indicator */}
-                    {workingEmployees.length > 2 && (
-                      <div className="text-xs text-muted-foreground">
-                        +{workingEmployees.length - 2} more
-                      </div>
-                    )}
-                    
-                    {/* Total hours */}
+                    {/* Total functions */}
                     <div className="pt-1 border-t">
                       <Badge variant="secondary" className="text-xs">
-                        {totalHours.toFixed(1)}h
+                        {totalFunctions} active
                       </Badge>
                     </div>
                   </div>
                 )}
                 
-                {/* No work day indicator */}
-                {day.isCurrentMonth && workingEmployees.length === 0 && (
+                {/* No functions indicator */}
+                {day.isCurrentMonth && activeFunctions.length === 0 && (
                   <div className="text-xs text-muted-foreground mt-2">
-                    No work scheduled
+                    No functions active
                   </div>
                 )}
               </div>
@@ -289,8 +244,8 @@ export function MonthlyScheduleView({
               <span>Other month</span>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">X.Xh</Badge>
-              <span>Total hours</span>
+              <Badge variant="secondary" className="text-xs">X active</Badge>
+              <span>Active functions</span>
             </div>
           </div>
         </div>
@@ -300,27 +255,27 @@ export function MonthlyScheduleView({
           <h4 className="text-sm font-medium mb-2">Month Summary</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <div className="text-muted-foreground">Total Employees</div>
-              <div className="font-medium">{schedules.length}</div>
+              <div className="text-muted-foreground">Total Functions</div>
+              <div className="font-medium">{functions.length}</div>
             </div>
             <div>
-              <div className="text-muted-foreground">Working Days</div>
+              <div className="text-muted-foreground">Active Days</div>
               <div className="font-medium">
                 {calendarDays.filter(day => 
-                  day.isCurrentMonth && getWorkingEmployees(day.date).length > 0
+                  day.isCurrentMonth && getActiveFunctions(day.date).length > 0
                 ).length}
               </div>
             </div>
             <div>
-              <div className="text-muted-foreground">Part-time</div>
+              <div className="text-muted-foreground">Functions with Employees</div>
               <div className="font-medium">
-                {schedules.filter(s => s.is_part_time).length}
+                {functions.filter(f => f.assigned_employees_count > 0).length}
               </div>
             </div>
             <div>
-              <div className="text-muted-foreground">Full-time</div>
+              <div className="text-muted-foreground">Unassigned Functions</div>
               <div className="font-medium">
-                {schedules.filter(s => !s.is_part_time).length}
+                {functions.filter(f => f.assigned_employees_count === 0).length}
               </div>
             </div>
           </div>

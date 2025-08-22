@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { CompanyFunctionsService } from '@/lib/company-functions-service'
 import { CompanyService } from '@/lib/company-service'
 import type { CompanyFunctionView, EmployeeFunctionView, CompanyMember, DailySchedule } from '@/types/database'
+import { ChevronDown, Check } from 'lucide-react'
 
 interface RosterShift {
   id: string
@@ -38,10 +39,25 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [shifts, setShifts] = useState<RosterShift[]>([])
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [filteredFunctions, setFilteredFunctions] = useState<CompanyFunctionView[]>([])
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false)
+  const [selectedFunctionIds, setSelectedFunctionIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadData()
   }, [companyId])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isFilterDropdownOpen && !(event.target as Element).closest('.function-filter-dropdown')) {
+        setIsFilterDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isFilterDropdownOpen])
 
   const loadData = async () => {
     try {
@@ -54,6 +70,10 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
       setFunctions(functionsData)
       setEmployees(employeesData)
       setTeamMembers(teamMembersData.members || [])
+      
+      // Initialize filtered functions and selected function IDs
+      setFilteredFunctions(functionsData)
+      setSelectedFunctionIds(new Set(functionsData.map(f => f.id)))
       
       // Generate shifts based on actual working schedules
       generateShiftsFromWorkingSchedules(functionsData, employeesData, teamMembersData.members || [])
@@ -74,12 +94,12 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
     const shifts: RosterShift[] = []
     let shiftId = 1
 
-    // If no functions or employees, create empty structure
-    if (functionsData.length === 0 || employeesData.length === 0) {
+    // If no functions, create empty structure
+    if (functionsData.length === 0) {
       // Create empty slots to show the calendar structure
       shifts.push({
         id: 'empty-1',
-        employeeName: 'No employees assigned',
+        employeeName: 'No functions created',
         role: 'No functions created',
         startTime: '--',
         endTime: '--',
@@ -88,7 +108,7 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
         isWorkingToday: false,
       })
     } else {
-      // Generate shifts for each function based on working schedules
+      // Generate shifts for each function - show ALL functions regardless of employee assignment
       functionsData.forEach((func) => {
         const employeesInFunction = employeesData.filter(emp => emp.function_id === func.id)
         
@@ -145,11 +165,55 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
               shiftId++
             }
           })
+        } else {
+          // Function has no employees assigned - show it as an empty function
+          shifts.push({
+            id: shiftId.toString(),
+            employeeName: 'No employees assigned',
+            role: func.name,
+            startTime: '--',
+            endTime: '--',
+            status: 'scheduled',
+            functionColor: func.color,
+            isWorkingToday: false,
+          })
+          shiftId++
         }
       })
     }
 
     setShifts(shifts)
+  }
+
+  // Filter functions based on selected checkboxes
+  const handleFunctionFilterChange = (functionId: string, checked: boolean) => {
+    const newSelectedIds = new Set(selectedFunctionIds)
+    if (checked) {
+      newSelectedIds.add(functionId)
+    } else {
+      newSelectedIds.delete(functionId)
+    }
+    setSelectedFunctionIds(newSelectedIds)
+    
+    // Update filtered functions
+    const newFilteredFunctions = functions.filter(f => newSelectedIds.has(f.id))
+    setFilteredFunctions(newFilteredFunctions)
+    
+    // Regenerate shifts with filtered functions
+    generateShiftsFromWorkingSchedules(newFilteredFunctions, employees, teamMembers)
+  }
+
+  // Toggle all functions
+  const toggleAllFunctions = (selectAll: boolean) => {
+    if (selectAll) {
+      setSelectedFunctionIds(new Set(functions.map(f => f.id)))
+      setFilteredFunctions(functions)
+      generateShiftsFromWorkingSchedules(functions, employees, teamMembers)
+    } else {
+      setSelectedFunctionIds(new Set())
+      setFilteredFunctions([])
+      generateShiftsFromWorkingSchedules([], employees, teamMembers)
+    }
   }
 
   // Navigate to previous day
@@ -263,6 +327,71 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
             Next Day →
           </Button>
           <div className="w-px h-6 bg-border mx-2" />
+          
+          {/* Function Filter Dropdown */}
+          <div className="relative function-filter-dropdown">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+              className="flex items-center gap-2"
+            >
+              Filter Functions
+              <ChevronDown className={`h-4 w-4 transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} />
+            </Button>
+            
+            {isFilterDropdownOpen && (
+              <div className="absolute top-full right-0 mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-50 p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium">Functions</h4>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleAllFunctions(true)}
+                      className="text-xs h-6 px-2"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleAllFunctions(false)}
+                      className="text-xs h-6 px-2"
+                    >
+                      Clear All
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {functions.map((func) => (
+                    <label key={func.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedFunctionIds.has(func.id)}
+                        onChange={(e) => handleFunctionFilterChange(func.id, e.target.checked)}
+                        className="rounded border-border"
+                      />
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-sm">{func.name}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          ({func.assigned_employees_count})
+                        </span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                
+                <div className="pt-2 border-t mt-3">
+                  <div className="text-xs text-muted-foreground">
+                    Showing {filteredFunctions.length} of {functions.length} functions
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
           <Button variant="outline" size="sm" title="Export Today's Schedule">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -316,16 +445,6 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
                 <div className="w-16 flex-shrink-0 py-1 px-1 font-medium text-xs border-r border-border bg-muted/30">
                   Time
                 </div>
-                {uniqueRoles.map((role) => {
-                  return (
-                    <div 
-                      key={role}
-                      className="flex-1 py-1 px-1 text-center text-xs font-medium border-r border-border bg-muted/20"
-                    >
-                      {role}
-                    </div>
-                  )
-                })}
               </div>
 
               {/* Grid Container */}
@@ -339,9 +458,9 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
                     </div>
 
                     {/* Empty Grid Columns for positioning */}
-                    {uniqueRoles.map((role) => (
+                    {filteredFunctions.map((func) => (
                       <div 
-                        key={role}
+                        key={func.id}
                         className="flex-1 border-r border-border/30 h-8"
                       />
                     ))}
@@ -362,15 +481,15 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
                     </div>
                   </div>
                 ) : (
-                  uniqueRoles.map((role, roleIndex) => {
-                    const roleShifts = shiftsByRole[role]
+                  filteredFunctions.map((func, funcIndex) => {
+                    const roleShifts = shiftsByRole[func.name] || []
                     const workingShifts = roleShifts.filter(shift => shift.isWorkingToday)
                     
                     // Always position employees side by side within their role column for consistency
                     if (workingShifts.length === 0) return null
                     
                     // Calculate column width and positioning
-                    const columnWidthCalc = `calc((100% - 64px) / ${uniqueRoles.length})`
+                    const columnWidthCalc = `calc((100% - 64px) / ${filteredFunctions.length})`
                     const gap = `4px`
                     const totalGaps = Math.max(0, (workingShifts.length - 1) * 4) // 4px gap between employees
                     
@@ -402,25 +521,35 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
                       
                       // Position employees side by side within their role column
                       const left = workingShifts.length === 1
-                        ? `calc(64px + ${columnWidthCalc} * ${roleIndex} + 4px)` // Centered in column
-                        : `calc(64px + ${columnWidthCalc} * ${roleIndex} + 4px + ${employeeIndex} * (${employeeWidth} + 4px))` // Side by side
+                        ? `calc(64px + ${columnWidthCalc} * ${funcIndex} + 4px)` // Centered in column
+                        : `calc(64px + ${columnWidthCalc} * ${funcIndex} + 4px + ${employeeIndex} * (${employeeWidth} + 4px))` // Side by side
                       
                       return (
                         <div
                           key={shift.id}
-                          className="absolute border rounded-lg shadow-md flex items-center justify-center"
+                          className="absolute border rounded-lg shadow-md flex items-center justify-center cursor-pointer group"
                           style={{
                             top,
                             height,
                             left,
                             width: employeeWidth,
                             zIndex: 10,
-                            backgroundColor: `${shift.functionColor || '#3b82f6'}15`,
-                            borderColor: `${shift.functionColor || '#3b82f6'}40`,
+                            backgroundColor: `${func.color || '#3b82f6'}15`,
+                            borderColor: `${func.color || '#3b82f6'}40`,
                           }}
+                          title={`${shift.employeeName} - ${func.name}`}
                         >
+                          {/* Hover Tooltip */}
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-20">
+                            <div className="font-medium">{shift.employeeName}</div>
+                            <div className="text-gray-300">{func.name}</div>
+                            <div className="text-gray-400">{shift.startTime} - {shift.endTime}</div>
+                            {/* Tooltip arrow */}
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
+                          </div>
+                          
                           <div className="text-xs font-medium text-center p-2">
-                            <div className="text-sm font-semibold" style={{ color: shift.functionColor || '#3b82f6' }}>
+                            <div className="text-sm font-semibold" style={{ color: func.color || '#3b82f6' }}>
                               {shift.employeeName}
                             </div>
                             <div className="text-xs opacity-80 mt-1">
@@ -435,42 +564,6 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
               </div>
             </div>
           </div>
-
-      {/* Employee Status Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {uniqueRoles.map((role) => {
-          const roleShifts = shiftsByRole[role]
-          const workingEmployees = roleShifts.filter(shift => shift.isWorkingToday)
-          const totalEmployees = roleShifts.length
-          
-          return (
-            <div key={role} className="border border-border rounded-lg p-4">
-              <h3 className="font-medium text-sm mb-2">{role}</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Working {isToday ? 'today' : 'on ' + dayName}:</span>
-                  <span className="font-medium">{workingEmployees.length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Total employees:</span>
-                  <span className="font-medium">{totalEmployees}</span>
-                </div>
-                {workingEmployees.length > 0 && (
-                  <div className="pt-2 border-t border-border">
-                    <div className="text-xs text-muted-foreground mb-1">{isToday ? 'Today\'s' : `${dayName}'s`} shifts:</div>
-                    {workingEmployees.map((shift) => (
-                      <div key={shift.id} className="text-xs flex justify-between">
-                        <span>{shift.employeeName}</span>
-                        <span>{shift.startTime} - {shift.endTime}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }

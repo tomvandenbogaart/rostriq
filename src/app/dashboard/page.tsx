@@ -3,12 +3,13 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { DatabaseService } from '@/lib/database'
+
 import { CompanyService } from '@/lib/company-service'
+import { CompanyFunctionsService } from '@/lib/company-functions-service'
 import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Company, UserProfile } from '@/types/database'
+import { Company, UserProfile, CompanyFunctionView } from '@/types/database'
 import { RosterDisplay } from '@/components/roster-display'
 import { MonthlyScheduleView } from '@/components/monthly-schedule-view'
 import { X } from 'lucide-react'
@@ -26,10 +27,28 @@ function DashboardContent() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userCompany, setUserCompany] = useState<Company | null>(null)
   const [showMonthlyView, setShowMonthlyView] = useState(false)
+  const [companyFunctions, setCompanyFunctions] = useState<CompanyFunctionView[]>([])
+  const [functionsLoading, setFunctionsLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlRole = searchParams.get('role')
   const urlCompany = searchParams.get('company')
+
+  // Fetch company functions for the company
+  const fetchCompanyFunctions = async (companyId: string) => {
+    if (!companyId) return
+    
+    setFunctionsLoading(true)
+    try {
+      const functions = await CompanyFunctionsService.getCompanyFunctions(companyId)
+      console.log('Fetched company functions:', functions)
+      setCompanyFunctions(functions)
+    } catch (error) {
+      console.error('Error fetching company functions:', error)
+    } finally {
+      setFunctionsLoading(false)
+    }
+  }
 
   useEffect(() => {
     const getUser = async () => {
@@ -81,7 +100,8 @@ function DashboardContent() {
         
         if (companies && companies.length > 0) {
           setUserCompany(companies[0])
-          // User has companies, no need to redirect
+          // Fetch company functions for the company
+          await fetchCompanyFunctions(companies[0].id)
         } else if (userProfileData.role === 'owner') {
           // Owner without companies should go to setup
           console.log('User is owner but has no companies, redirecting to setup-company');
@@ -98,18 +118,20 @@ function DashboardContent() {
           const { company } = await CompanyService.getCompanyById(urlCompany)
           if (company) {
             setUserCompany(company)
+            // Fetch company functions for the URL company
+            await fetchCompanyFunctions(company.id)
           }
         }
+
+        setLoading(false)
       } catch (error) {
-        console.error('Error fetching user:', error)
-        router.push('/signin')
-      } finally {
+        console.error('Error in getUser:', error)
         setLoading(false)
       }
     }
 
     getUser()
-  }, [router, urlRole])
+  }, [router, searchParams, urlCompany])
 
 
 
@@ -176,57 +198,60 @@ function DashboardContent() {
           {/* Schedule Content */}
           {userCompany ? (
             showMonthlyView ? (
-              <MonthlyScheduleView 
-                schedules={[
-                  {
-                    id: '1',
-                    name: 'John Smith',
-                    daily_schedule: {
-                      monday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
-                      tuesday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
-                      wednesday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
-                      thursday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
-                      friday: { enabled: true, start_time: '09:00:00', end_time: '17:00:00' },
-                      saturday: { enabled: false },
-                      sunday: { enabled: false },
-                    },
-                    is_part_time: false,
-                    working_schedule_notes: 'Full-time employee'
-                  },
-                  {
-                    id: '2',
-                    name: 'Sarah Johnson',
-                    daily_schedule: {
-                      monday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
-                      tuesday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
-                      wednesday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
-                      thursday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
-                      friday: { enabled: true, start_time: '10:00:00', end_time: '16:00:00' },
-                      saturday: { enabled: false },
-                      sunday: { enabled: false },
-                    },
-                    is_part_time: true,
-                    working_schedule_notes: 'Part-time employee'
-                  },
-                  {
-                    id: '3',
-                    name: 'Mike Wilson',
-                    daily_schedule: {
-                      monday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
-                      tuesday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
-                      wednesday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
-                      thursday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
-                      friday: { enabled: true, start_time: '08:00:00', end_time: '18:00:00' },
-                      saturday: { enabled: true, start_time: '09:00:00', end_time: '15:00:00' },
-                      sunday: { enabled: false },
-                    },
-                    is_part_time: false,
-                    working_schedule_notes: 'Full-time with Saturday shifts'
-                  }
-                ]}
-                currentMonth={new Date()}
-                onMonthChange={() => {}}
-              />
+              <div className="space-y-4">
+                {/* Loading state for functions */}
+                {functionsLoading && (
+                  <Card>
+                    <CardContent className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                      <p className="text-muted-foreground">Loading company functions...</p>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Error state for functions */}
+                {!functionsLoading && companyFunctions.length === 0 && (
+                  <Card>
+                    <CardContent className="text-center py-8">
+                      <div className="text-muted-foreground mb-4">
+                        No company functions found
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Company functions need to be created to see them in the schedule.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => fetchCompanyFunctions(userCompany.id)}
+                      >
+                        Refresh Functions
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Company functions view */}
+                {!functionsLoading && companyFunctions.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => fetchCompanyFunctions(userCompany.id)}
+                      >
+                        Refresh
+                      </Button>
+                    </div>
+                    <MonthlyScheduleView 
+                      functions={companyFunctions}
+                      currentMonth={new Date()}
+                      onMonthChange={() => {}}
+                    />
+                  </>
+                )}
+              </div>
             ) : (
               <RosterDisplay companyId={userCompany.id} />
             )

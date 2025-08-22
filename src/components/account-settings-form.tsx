@@ -121,31 +121,42 @@ export function AccountSettingsForm({ user }: AccountSettingsFormProps) {
 
   return (
     <div className="space-y-6">
-      {/* Account Information */}
+      {/* Account Overview */}
       <Card>
         <CardHeader>
-          <CardTitle>Account Information</CardTitle>
-          <CardDescription>Your basic account details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="userId">User ID</Label>
-            <Input
-              id="userId"
-              value={user.id}
-              disabled
-              className="bg-gray-50"
-            />
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
+              <span className="text-2xl text-primary font-bold">
+                {user.email?.charAt(0).toUpperCase() || 'U'}
+              </span>
+            </div>
+            <div>
+              <CardTitle className="text-2xl">Account Overview</CardTitle>
+              <CardDescription>
+                {user.email} • Member since {new Date(user.created_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </CardDescription>
+            </div>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="createdAt">Account Created</Label>
-            <Input
-              id="createdAt"
-              value={new Date(user.created_at).toLocaleDateString()}
-              disabled
-              className="bg-gray-50"
-            />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-medium text-foreground mb-1">User ID</h4>
+              <p className="text-muted-foreground font-mono text-sm">{user.id}</p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-foreground mb-1">Account Status</h4>
+              <p className="text-muted-foreground">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  Active
+                </span>
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -154,25 +165,44 @@ export function AccountSettingsForm({ user }: AccountSettingsFormProps) {
       <Card>
         <CardHeader>
           <CardTitle>Update Email</CardTitle>
-          <CardDescription>Change your email address</CardDescription>
+          <CardDescription>Change your email address for account notifications and login</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleEmailUpdate} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">New Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="Enter new email address"
-                required
-              />
+          <form onSubmit={handleEmailUpdate} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="currentEmail" className="text-sm font-medium">Current Email</Label>
+                <Input
+                  id="currentEmail"
+                  type="email"
+                  value={user.email || ''}
+                  disabled
+                  className="bg-muted"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">New Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="Enter new email address"
+                  required
+                />
+              </div>
             </div>
             
-            <Button type="submit" disabled={isLoading || formData.email === user.email}>
-              {isLoading ? 'Updating...' : 'Update Email'}
-            </Button>
+            <div className="flex justify-end">
+              <Button 
+                type="submit" 
+                disabled={isLoading || formData.email === user.email}
+                className="min-w-[140px]"
+              >
+                {isLoading ? 'Updating...' : 'Update Email'}
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -181,92 +211,97 @@ export function AccountSettingsForm({ user }: AccountSettingsFormProps) {
       <Card>
         <CardHeader>
           <CardTitle>Update Password</CardTitle>
-          <CardDescription>Change your password</CardDescription>
+          <CardDescription>Change your password to keep your account secure</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handlePasswordUpdate} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={formData.newPassword}
-                onChange={(e) => handleInputChange('newPassword', e.target.value)}
-                placeholder="Enter new password"
-                required
-              />
+          <form onSubmit={handlePasswordUpdate} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword" className="text-sm font-medium">New Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={formData.newPassword}
+                  onChange={(e) => handleInputChange('newPassword', e.target.value)}
+                  placeholder="Enter new password"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">Must be at least 6 characters long</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  placeholder="Confirm new password"
+                  required
+                />
+              </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                placeholder="Confirm new password"
-                required
-              />
+            <div className="flex justify-end">
+              <Button 
+                type="submit" 
+                disabled={isLoading || !formData.newPassword || !formData.confirmPassword}
+                className="min-w-[140px]"
+              >
+                {isLoading ? 'Updating...' : 'Update Password'}
+              </Button>
             </div>
-            
-            <Button type="submit" disabled={isLoading || !formData.newPassword || !formData.confirmPassword}>
-              {isLoading ? 'Updating...' : 'Update Password'}
-            </Button>
           </form>
         </CardContent>
       </Card>
 
       {/* Danger Zone */}
-      <Card className="border-red-200">
+      <Card className="border-destructive/20 bg-destructive/5">
         <CardHeader>
-          <CardTitle className="text-red-600">Danger Zone</CardTitle>
-          <CardDescription>Irreversible and destructive actions</CardDescription>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          <CardDescription className="text-destructive/80">Irreversible and destructive actions</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-600 mb-4">
-                Once you delete your account, there is no going back. Please be certain.
-              </p>
-              <Button 
-                variant="destructive" 
-                onClick={handleDeleteAccount}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Deleting...' : 'Delete Account'}
-              </Button>
-            </div>
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-sm text-destructive mb-4">
+              Once you delete your account, there is no going back. Please be certain.
+            </p>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteAccount}
+              disabled={isLoading}
+              className="min-w-[140px]"
+            >
+              {isLoading ? 'Deleting...' : 'Delete Account'}
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Error and Success Messages */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600">{error}</p>
-        </div>
+        <Card className="border-destructive/20 bg-destructive/5">
+          <CardContent className="pt-6">
+            <p className="text-sm text-destructive">{error}</p>
+          </CardContent>
+        </Card>
       )}
       
       {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-          <p className="text-sm text-green-600">{success}</p>
-        </div>
+        <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
+          <CardContent className="pt-6">
+            <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={() => router.back()}
-        >
-          Back
-        </Button>
-        
+      {/* Actions */}
+      <div className="flex justify-center">
         <Button
           variant="outline"
           onClick={() => router.push('/dashboard')}
         >
-          Go to Dashboard
+          Back to Dashboard
         </Button>
       </div>
     </div>
