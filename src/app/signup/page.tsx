@@ -1,10 +1,10 @@
-import { Header } from '@/components/header'
+import { MinimalHeader } from '@/components/minimal-header'
 import { SignUpForm } from '@/components/signup-form'
 
 export default function SignUpPage() {
   return (
     <>
-      <Header />
+      <MinimalHeader />
       <main className="min-h-screen flex items-center justify-center py-20 px-4">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">

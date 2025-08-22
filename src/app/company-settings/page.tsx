@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { CompanyService } from '@/lib/company-service'
-import { Header } from '@/components/header'
+import { SideMenu } from '@/components/side-menu'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Company, UserProfile } from '@/types/database'
@@ -83,8 +83,8 @@ function CompanySettingsContent() {
   if (loading) {
     return (
       <>
-        <Header />
-        <main className="min-h-screen flex items-center justify-center">
+        <SideMenu />
+        <main className="min-h-screen flex items-center justify-center md:ml-80">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading company settings...</p>
@@ -100,8 +100,8 @@ function CompanySettingsContent() {
 
   return (
     <>
-      <Header />
-      <main className="min-h-screen py-8">
+      <SideMenu />
+      <main className="min-h-screen py-8 md:ml-80">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div>
             <h1 className="text-4xl font-bold text-foreground">Company Settings</h1>
@@ -263,8 +263,8 @@ export default function CompanySettings() {
   return (
     <Suspense fallback={
       <>
-        <Header />
-        <main className="min-h-screen flex items-center justify-center">
+        <SideMenu />
+        <main className="min-h-screen flex items-center justify-center md:ml-80">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading company settings...</p>

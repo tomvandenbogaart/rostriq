@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { CompanyService } from '@/lib/company-service';
 import { DatabaseService } from '@/lib/database';
 import { TeamPageContent } from '@/components/team-page-content';
-import { Header } from '@/components/header';
+import { SideMenu } from '@/components/side-menu';
 import { Company, UserProfile, CompanyMember } from '@/types/database';
 
 interface User {
@@ -132,8 +132,8 @@ function TeamPageMain() {
   if (loading) {
     return (
       <>
-        <Header />
-        <main className="min-h-screen flex items-center justify-center">
+        <SideMenu />
+        <main className="min-h-screen flex items-center justify-center md:ml-80">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading team management...</p>
@@ -149,8 +149,8 @@ function TeamPageMain() {
 
   return (
     <>
-      <Header />
-      <main className="min-h-screen py-8">
+      <SideMenu />
+      <main className="min-h-screen py-8 md:ml-80">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <TeamPageContent 
             members={teamMembers}
@@ -171,8 +171,8 @@ export default function TeamPage() {
   return (
     <Suspense fallback={
       <>
-        <Header />
-        <main className="min-h-screen flex items-center justify-center">
+        <SideMenu />
+        <main className="min-h-screen flex items-center justify-center md:ml-80">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading team management...</p>

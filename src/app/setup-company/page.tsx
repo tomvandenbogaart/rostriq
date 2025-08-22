@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CompanyProfileForm } from '@/components/company-profile-form';
 import { CompanyService } from '@/lib/company-service';
-import { Header } from '@/components/header';
+import { MinimalHeader } from '@/components/minimal-header';
 
 export default function SetupCompanyPage() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
@@ -102,7 +102,7 @@ export default function SetupCompanyPage() {
 
   return (
     <>
-      <Header />
+      <MinimalHeader />
       <main className="min-h-screen py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Welcome Section */}

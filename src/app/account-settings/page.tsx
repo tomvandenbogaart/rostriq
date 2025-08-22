@@ -1,7 +1,7 @@
 'use client'
 
 import { AuthGuard } from '@/components/auth-guard'
-import { Header } from '@/components/header'
+import { SideMenu } from '@/components/side-menu'
 import { AccountSettingsForm } from '@/components/account-settings-form'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -23,8 +23,8 @@ export default function AccountSettingsPage() {
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
-        <Header />
-        <div className="py-12 px-4 sm:px-6 lg:px-8">
+        <SideMenu />
+        <div className="py-12 px-4 sm:px-6 lg:px-8 md:ml-80">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-foreground mb-2">
