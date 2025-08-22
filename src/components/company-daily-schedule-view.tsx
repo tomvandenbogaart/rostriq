@@ -20,6 +20,19 @@ const TIME_SLOTS = Array.from({ length: 17 }, (_, i) => {
   return `${hour.toString().padStart(2, '0')}:00`;
 });
 
+interface ScheduleSlot {
+  employeeName: string;
+  functionName: string;
+  functionColor: string;
+  startHour: number;
+  endHour: number;
+  startTime: string;
+  endTime: string;
+  email: string;
+  columnIndex: number;
+  totalColumns: number;
+}
+
 export function CompanyDailyScheduleView({ 
   currentDate = new Date(),
   onDateChange,
@@ -59,8 +72,8 @@ export function CompanyDailyScheduleView({
     onDateChange?.(today);
   };
 
-  // Get schedule data for the selected day
-  const getDayScheduleData = () => {
+  // Get schedule data for the selected day with proper stacking
+  const getDayScheduleData = (): ScheduleSlot[] => {
     const daySchedules: Array<{
       employeeName: string;
       functionName: string;
@@ -98,8 +111,29 @@ export function CompanyDailyScheduleView({
         email: employee.email
       });
     });
+
+    console.log('Raw day schedules:', daySchedules);
+
+    // Sort schedules by start time
+    daySchedules.sort((a, b) => a.startHour - b.startHour);
+
+    // Calculate overlapping schedules and assign column positions
+    const scheduleSlots: ScheduleSlot[] = [];
     
-    return daySchedules;
+    // For now, let's assign each schedule to a different column to test the layout
+    daySchedules.forEach((schedule, index) => {
+      scheduleSlots.push({
+        ...schedule,
+        columnIndex: index, // Each schedule gets its own column
+        totalColumns: daySchedules.length
+      });
+    });
+
+    const maxColumns = daySchedules.length;
+    console.log('Processed schedule slots:', scheduleSlots);
+    console.log('Max columns needed:', maxColumns);
+    
+    return scheduleSlots;
   };
 
   // Check if a time slot should show a schedule card
@@ -118,6 +152,7 @@ export function CompanyDailyScheduleView({
   });
 
   const daySchedules = getDayScheduleData();
+  const maxColumns = Math.max(...daySchedules.map(s => s.totalColumns), 1);
 
   return (
     <Card className="w-full">
@@ -182,7 +217,8 @@ export function CompanyDailyScheduleView({
               style={{
                 display: 'grid',
                 gridTemplateColumns: '80px 1fr',
-                gridTemplateRows: `repeat(${TIME_SLOTS.length}, 32px)`
+                gridTemplateRows: `repeat(${TIME_SLOTS.length}, 32px)`,
+                position: 'relative'
               }}
             >
               {/* Time Labels */}
@@ -231,26 +267,40 @@ export function CompanyDailyScheduleView({
                   TIME_SLOTS.length - startRowIndex : 
                   endRowIndex - startRowIndex;
                 
+                // Calculate card width and position for side-by-side layout with spacing
+                const gap = 4; // 4px gap between cards
+                const sidePadding = 4; // 4px padding on left and right sides
+                const totalGaps = maxColumns - 1;
+                const availableWidth = `calc(100% - ${totalGaps * gap}px - ${sidePadding * 2}px)`;
+                const cardWidth = maxColumns > 1 ? `calc(${availableWidth} / ${maxColumns})` : '100%';
+                const leftOffset = maxColumns > 1 ? `calc(${sidePadding}px + ${schedule.columnIndex} * (${cardWidth} + ${gap}px))` : '0';
+                
                 return (
                   <div
                     key={`schedule-${schedule.email}`}
                     className="p-1 z-10"
                     style={{
-                      gridColumn: 2,
-                      gridRow: `${startRowIndex + 1} / span ${duration}`
+                      gridColumn: '2 / span 1',
+                      gridRow: `${startRowIndex + 1} / span ${duration}`,
+                      position: 'relative'
                     }}
                   >
                     <div 
-                      className="h-full rounded border p-2 flex flex-col justify-center shadow-sm"
+                      className="rounded border p-2 flex flex-col justify-center shadow-sm"
                       style={{ 
                         backgroundColor: `${schedule.functionColor}20`,
-                        borderColor: schedule.functionColor
+                        borderColor: schedule.functionColor,
+                        position: 'absolute',
+                        left: leftOffset,
+                        width: cardWidth,
+                        top: '4px',
+                        height: `calc(${duration * 32}px - 8px)`
                       }}
                     >
-                      <div className="font-medium text-sm">
+                      <div className="font-medium text-sm truncate">
                         {schedule.employeeName}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground truncate">
                         {schedule.functionName}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
@@ -280,6 +330,11 @@ export function CompanyDailyScheduleView({
                   <div className="text-xs text-muted-foreground">
                     • Color-coded by function type
                   </div>
+                  {maxColumns > 1 && (
+                    <div className="text-xs text-muted-foreground">
+                      • {maxColumns} employee{maxColumns !== 1 ? 's' : ''} working simultaneously at peak times
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground">

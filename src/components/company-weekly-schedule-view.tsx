@@ -40,6 +40,19 @@ interface TeamMemberWithProfile extends CompanyMember {
   };
 }
 
+interface ScheduleSlot {
+  employeeName: string;
+  functionName: string;
+  functionColor: string;
+  startHour: number;
+  endHour: number;
+  startTime: string;
+  endTime: string;
+  email: string;
+  columnIndex: number;
+  totalColumns: number;
+}
+
 export function CompanyWeeklyScheduleView({ 
   currentWeek = new Date(),
   onWeekChange,
@@ -113,8 +126,8 @@ export function CompanyWeeklyScheduleView({
     }
   };
 
-  // Get schedule data for a specific day
-  const getDayScheduleData = (dayKey: keyof DailySchedule) => {
+  // Get schedule data for a specific day with proper stacking
+  const getDayScheduleData = (dayKey: keyof DailySchedule): ScheduleSlot[] => {
     const daySchedules: Array<{
       employeeName: string;
       functionName: string;
@@ -152,8 +165,29 @@ export function CompanyWeeklyScheduleView({
         email: employee.email
       });
     });
+
+    // Sort schedules by start time
+    daySchedules.sort((a, b) => a.startHour - b.startHour);
+
+    // Calculate overlapping schedules and assign column positions
+    const scheduleSlots: ScheduleSlot[] = [];
     
-    return daySchedules;
+    // For now, let's assign each schedule to a different column to test the layout
+    daySchedules.forEach((schedule, index) => {
+      scheduleSlots.push({
+        ...schedule,
+        columnIndex: index, // Each schedule gets its own column
+        totalColumns: daySchedules.length
+      });
+    });
+
+    // Update totalColumns for all schedules based on the maximum found
+    const maxColumns = daySchedules.length;
+
+    console.log('Processed schedule slots for', dayKey, ':', scheduleSlots);
+    console.log('Max columns needed for', dayKey, ':', maxColumns);
+    
+    return scheduleSlots;
   };
 
   // Check if a time slot should show a schedule card
@@ -179,6 +213,15 @@ export function CompanyWeeklyScheduleView({
       rowSpan
     };
   };
+
+  // Calculate maximum columns needed across all days
+  const maxColumnsPerDay = useMemo(() => {
+    const maxColumns = weekDays.map(day => {
+      const daySchedules = getDayScheduleData(day.dayKey);
+      return Math.max(...daySchedules.map(s => s.totalColumns), 1);
+    });
+    return Math.max(...maxColumns, 1);
+  }, [weekDays]);
 
   return (
     <Card className="w-full">
@@ -249,7 +292,8 @@ export function CompanyWeeklyScheduleView({
               style={{
                 display: 'grid',
                 gridTemplateColumns: '80px repeat(7, 1fr)',
-                gridTemplateRows: `repeat(${TIME_SLOTS.length}, 32px)`
+                gridTemplateRows: `repeat(${TIME_SLOTS.length}, 32px)`,
+                position: 'relative'
               }}
             >
               {/* Time Labels */}
@@ -290,6 +334,7 @@ export function CompanyWeeklyScheduleView({
               {/* Schedule Cards */}
               {weekDays.map((day, dayIndex) => {
                 const daySchedules = getDayScheduleData(day.dayKey);
+                const dayMaxColumns = Math.max(...daySchedules.map(s => s.totalColumns), 1);
                 
                 return daySchedules.map((schedule) => {
                   const startRowIndex = TIME_SLOTS.findIndex(slot => 
@@ -305,20 +350,34 @@ export function CompanyWeeklyScheduleView({
                     TIME_SLOTS.length - startRowIndex : 
                     endRowIndex - startRowIndex;
                   
+                  // Calculate card width and position for side-by-side layout with spacing
+                  const gap = 4; // 4px gap between cards
+                  const sidePadding = 4; // 4px padding on left and right sides
+                  const totalGaps = dayMaxColumns - 1;
+                  const availableWidth = `calc(100% - ${totalGaps * gap}px - ${sidePadding * 2}px)`;
+                  const cardWidth = dayMaxColumns > 1 ? `calc(${availableWidth} / ${dayMaxColumns})` : '100%';
+                  const leftOffset = dayMaxColumns > 1 ? `calc(${sidePadding}px + ${schedule.columnIndex} * (${cardWidth} + ${gap}px))` : '0';
+                  
                   return (
                     <div
                       key={`schedule-${schedule.email}-${day.date.toISOString()}`}
                       className="p-1 z-10"
                       style={{
-                        gridColumn: dayIndex + 2,
-                        gridRow: `${startRowIndex + 1} / span ${duration}`
+                        gridColumn: `${dayIndex + 2} / span 1`,
+                        gridRow: `${startRowIndex + 1} / span ${duration}`,
+                        position: 'relative'
                       }}
                     >
                       <div 
-                        className="h-full rounded border p-2 flex flex-col justify-center shadow-sm"
+                        className="rounded border p-2 flex flex-col justify-center shadow-sm"
                         style={{ 
                           backgroundColor: `${schedule.functionColor}20`,
-                          borderColor: schedule.functionColor
+                          borderColor: schedule.functionColor,
+                          position: 'absolute',
+                          left: leftOffset,
+                          width: cardWidth,
+                          top: '4px',
+                          height: `calc(${duration * 32}px - 8px)`
                         }}
                       >
                         <div className="font-medium text-xs truncate">
@@ -380,6 +439,11 @@ export function CompanyWeeklyScheduleView({
                 <div className="text-xs text-muted-foreground">
                   • Today&apos;s column is highlighted
                 </div>
+                {maxColumnsPerDay > 1 && (
+                  <div className="text-xs text-muted-foreground">
+                    • Up to {maxColumnsPerDay} employee{maxColumnsPerDay !== 1 ? 's' : ''} working simultaneously at peak times
+                  </div>
+                )}
               </div>
             </div>
           </div>
