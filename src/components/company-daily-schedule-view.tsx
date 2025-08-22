@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar, Printer, Share2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Printer, Share2, User, Users } from 'lucide-react';
 import type { CompanyFunctionView, EmployeeFunctionView, CompanyMember, DailySchedule } from '@/types/database';
 
 interface CompanyDailyScheduleViewProps {
@@ -15,8 +15,8 @@ interface CompanyDailyScheduleViewProps {
   userRole?: 'owner' | 'admin' | 'member';
 }
 
-const TIME_SLOTS = Array.from({ length: 17 }, (_, i) => {
-  const hour = i + 6;
+const TIME_SLOTS = Array.from({ length: 24 }, (_, i) => {
+  const hour = i;
   return `${hour.toString().padStart(2, '0')}:00`;
 });
 
@@ -24,13 +24,12 @@ interface ScheduleSlot {
   employeeName: string;
   functionName: string;
   functionColor: string;
-  startHour: number;
-  endHour: number;
   startTime: string;
   endTime: string;
   email: string;
-  columnIndex: number;
-  totalColumns: number;
+  totalHours: number;
+  startHour: number;
+  endHour: number;
 }
 
 export function CompanyDailyScheduleView({ 
@@ -72,77 +71,50 @@ export function CompanyDailyScheduleView({
     onDateChange?.(today);
   };
 
-  // Get schedule data for the selected day with proper stacking
-  const getDayScheduleData = (): ScheduleSlot[] => {
-    const daySchedules: Array<{
-      employeeName: string;
-      functionName: string;
-      functionColor: string;
-      startHour: number;
-      endHour: number;
-      startTime: string;
-      endTime: string;
-      email: string;
-    }> = [];
-    
-    employees.forEach(employee => {
-      const teamMember = teamMembers.find(member => 
-        member.user_profile.email === employee.email
-      );
-      
-      if (!teamMember || !teamMember.daily_schedule) return;
-      
-      const daySchedule = teamMember.daily_schedule[dayKey];
-      if (!daySchedule?.enabled || !daySchedule.start_time || !daySchedule.end_time) return;
-      
-      const startHour = parseInt(daySchedule.start_time.split(':')[0]);
-      const endHour = parseInt(daySchedule.end_time.split(':')[0]);
-      
-      const functionData = companyFunctions.find(f => f.id === employee.function_id);
-      
-      daySchedules.push({
-        employeeName: `${employee.first_name} ${employee.last_name}`,
-        functionName: functionData?.name || 'Unknown Function',
-        functionColor: functionData?.color || '#6b7280',
-        startHour,
-        endHour,
-        startTime: daySchedule.start_time.substring(0, 5),
-        endTime: daySchedule.end_time.substring(0, 5),
-        email: employee.email
-      });
-    });
-
-    console.log('Raw day schedules:', daySchedules);
-
-    // Sort schedules by start time
-    daySchedules.sort((a, b) => a.startHour - b.startHour);
-
-    // Calculate overlapping schedules and assign column positions
-    const scheduleSlots: ScheduleSlot[] = [];
-    
-    // For now, let's assign each schedule to a different column to test the layout
-    daySchedules.forEach((schedule, index) => {
-      scheduleSlots.push({
-        ...schedule,
-        columnIndex: index, // Each schedule gets its own column
-        totalColumns: daySchedules.length
-      });
-    });
-
-    const maxColumns = daySchedules.length;
-    console.log('Processed schedule slots:', scheduleSlots);
-    console.log('Max columns needed:', maxColumns);
-    
-    return scheduleSlots;
-  };
-
-  // Check if a time slot should show a schedule card
-  const shouldShowScheduleCard = (timeHour: number) => {
-    const daySchedules = getDayScheduleData();
-    return daySchedules.some(schedule => 
-      timeHour >= schedule.startHour && timeHour < schedule.endHour
+  // Get schedule data for a specific employee
+  const getEmployeeDaySchedule = (employee: EmployeeFunctionView): ScheduleSlot | null => {
+    const teamMember = teamMembers.find(member => 
+      member.user_profile.email === employee.email
     );
+    
+    if (!teamMember || !teamMember.daily_schedule) return null;
+    
+    const daySchedule = teamMember.daily_schedule[dayKey];
+    if (!daySchedule?.enabled || !daySchedule.start_time || !daySchedule.end_time) return null;
+    
+    const startHour = parseInt(daySchedule.start_time.split(':')[0]);
+    const endHour = parseInt(daySchedule.end_time.split(':')[0]);
+    
+    const functionData = companyFunctions.find(f => f.id === employee.function_id);
+    
+    // Calculate total hours for the day
+    const totalHours = endHour - startHour;
+    
+    return {
+      employeeName: `${employee.first_name} ${employee.last_name}`,
+      functionName: functionData?.name || 'Unknown Function',
+      functionColor: functionData?.color || '#6b7280',
+      startTime: daySchedule.start_time.substring(0, 5),
+      endTime: daySchedule.end_time.substring(0, 5),
+      email: employee.email,
+      totalHours,
+      startHour,
+      endHour
+    };
   };
+
+  // Get all employees with their daily schedules
+  const employeesWithSchedules = useMemo(() => {
+    return employees.map(employee => {
+      const daySchedule = getEmployeeDaySchedule(employee);
+      
+      return {
+        ...employee,
+        daySchedule,
+        totalDailyHours: daySchedule?.totalHours || 0
+      };
+    });
+  }, [employees, dayKey, teamMembers, companyFunctions]);
 
   const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
   const dateString = selectedDate.toLocaleDateString('en-US', { 
@@ -150,9 +122,6 @@ export function CompanyDailyScheduleView({
     month: 'long', 
     day: 'numeric' 
   });
-
-  const daySchedules = getDayScheduleData();
-  const maxColumns = Math.max(...daySchedules.map(s => s.totalColumns), 1);
 
   return (
     <Card className="w-full">
@@ -201,149 +170,96 @@ export function CompanyDailyScheduleView({
         {/* Schedule Grid */}
         <div className="border border-border rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            {/* Header Row */}
+            {/* Header Row - Time slots */}
             <div className="flex border-b border-border">
-              <div className="w-20 flex-shrink-0 py-2 px-2 font-medium text-xs border-r border-border bg-muted/30">
-                Time
+              <div className="w-32 flex-shrink-0 py-2 px-2 font-medium text-sm border-r border-border bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>Team</span>
+                </div>
               </div>
-              <div className="flex-1 py-2 px-2 font-medium text-xs border-r border-border bg-muted/30 text-center">
-                {dayName}
-              </div>
-            </div>
-
-            {/* Grid Container */}
-            <div 
-              className="relative"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '80px 1fr',
-                gridTemplateRows: `repeat(${TIME_SLOTS.length}, 32px)`,
-                position: 'relative'
-              }}
-            >
-              {/* Time Labels */}
-              {TIME_SLOTS.map((time, timeIndex) => (
+              {TIME_SLOTS.map((timeSlot) => (
                 <div
-                  key={`time-${time}`}
-                  className="py-1 px-2 border-r border-b border-border bg-muted/10 flex items-center"
-                  style={{ gridColumn: 1, gridRow: timeIndex + 1 }}
+                  key={timeSlot}
+                  className="w-12 flex-shrink-0 py-2 px-1 font-medium text-xs border-r border-border bg-muted/30 text-center"
                 >
-                  <div className="font-medium text-xs">{time}</div>
+                  <div className="font-medium">{timeSlot}</div>
                 </div>
               ))}
+            </div>
 
-              {/* Background Grid Cells */}
-              {TIME_SLOTS.map((time, timeIndex) => {
-                const timeHour = parseInt(time.split(':')[0]);
-                const isInSchedule = shouldShowScheduleCard(timeHour);
-                
-                return (
-                  <div
-                    key={`bg-${time}`}
-                    className={`
-                      border-r border-b border-border/30 min-h-[32px]
-                      ${isInSchedule ? '' : 'hover:bg-muted/20'}
-                    `}
-                    style={{ 
-                      gridColumn: 2, 
-                      gridRow: timeIndex + 1 
-                    }}
-                  />
-                );
-              })}
-
-              {/* Schedule Cards */}
-              {daySchedules.map((schedule) => {
-                const startRowIndex = TIME_SLOTS.findIndex(slot => 
-                  parseInt(slot.split(':')[0]) === schedule.startHour
-                );
-                const endRowIndex = TIME_SLOTS.findIndex(slot => 
-                  parseInt(slot.split(':')[0]) === schedule.endHour
-                );
-                
-                if (startRowIndex === -1) return null;
-                
-                const duration = endRowIndex === -1 ? 
-                  TIME_SLOTS.length - startRowIndex : 
-                  endRowIndex - startRowIndex;
-                
-                // Calculate card width and position for side-by-side layout with spacing
-                const gap = 4; // 4px gap between cards
-                const sidePadding = 4; // 4px padding on left and right sides
-                const totalGaps = maxColumns - 1;
-                const availableWidth = `calc(100% - ${totalGaps * gap}px - ${sidePadding * 2}px)`;
-                const cardWidth = maxColumns > 1 ? `calc(${availableWidth} / ${maxColumns})` : '100%';
-                const leftOffset = maxColumns > 1 ? `calc(${sidePadding}px + ${schedule.columnIndex} * (${cardWidth} + ${gap}px))` : '0';
-                
-                return (
-                  <div
-                    key={`schedule-${schedule.email}`}
-                    className="p-1 z-10"
-                    style={{
-                      gridColumn: '2 / span 1',
-                      gridRow: `${startRowIndex + 1} / span ${duration}`,
-                      position: 'relative'
-                    }}
-                  >
-                    <div 
-                      className="rounded border p-2 flex flex-col justify-center shadow-sm"
-                      style={{ 
-                        backgroundColor: `${schedule.functionColor}20`,
-                        borderColor: schedule.functionColor,
-                        position: 'absolute',
-                        left: leftOffset,
-                        width: cardWidth,
-                        top: '4px',
-                        height: `calc(${duration * 32}px - 8px)`
-                      }}
-                    >
+            {/* Employee Rows */}
+            {employeesWithSchedules.map((employee, employeeIndex) => (
+              <div key={employee.email} className="flex border-b border-border last:border-b-0 relative">
+                {/* Employee Info Column */}
+                <div className="w-32 flex-shrink-0 py-2 px-2 border-r border-border bg-muted/10">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 bg-muted rounded-full flex items-center justify-center">
+                      <User className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm truncate">
-                        {schedule.employeeName}
+                        {employee.first_name} {employee.last_name}
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {schedule.functionName}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {schedule.startTime} - {schedule.endTime}
+                      <div className="text-xs text-muted-foreground">
+                        {employee.totalDailyHours} uur
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+
+                {/* Time Slot Columns */}
+                <div className="flex flex-1 relative">
+                  {TIME_SLOTS.map((timeSlot, timeIndex) => {
+                    const timeHour = parseInt(timeSlot.split(':')[0]);
+                    const schedule = employee.daySchedule;
+                    
+                    // Check if this time slot is within the employee's schedule
+                    const isInSchedule = schedule && timeHour >= schedule.startHour && timeHour < schedule.endHour;
+                    const isStartTime = schedule && timeHour === schedule.startHour;
+                    
+                    return (
+                      <div
+                        key={`${employee.email}-${timeSlot}`}
+                        className="w-12 flex-shrink-0 py-2 px-1 border-r border-border min-h-[40px] flex items-center justify-center relative"
+                      >
+                        {/* Show schedule card only at the start time, spanning multiple columns */}
+                        {isStartTime && schedule && (
+                          <div 
+                            className="absolute inset-0 rounded border shadow-sm flex flex-col justify-center items-center text-center p-1 z-10"
+                            style={{ 
+                              backgroundColor: `${schedule.functionColor}20`,
+                              borderColor: schedule.functionColor,
+                              left: '2px',
+                              right: '2px',
+                              top: '2px',
+                              bottom: '2px',
+                              width: `calc(${schedule.totalHours * 48}px - 4px)`, // 48px per hour (12px * 4)
+                            }}
+                          >
+                            <div className="text-xs font-medium text-foreground">
+                              {schedule.startTime} - {schedule.endTime}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              {schedule.functionName}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Show dash for time slots outside of schedule */}
+                        {!isInSchedule && (
+                          <div className="text-xs text-muted-foreground">
+                            -
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Summary */}
-        {userRole === 'owner' || userRole === 'admin' ? (
-          <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-            <div className="text-center py-2">
-              <h4 className="text-sm font-medium mb-2">Day Overview</h4>
-              <p className="text-xs text-muted-foreground mb-4">
-                Showing schedule for {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''} and {employees.length} employee{employees.length !== 1 ? 's' : ''}
-              </p>
-              {daySchedules.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">
-                    • {daySchedules.length} employee{daySchedules.length !== 1 ? 's' : ''} working today
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    • Color-coded by function type
-                  </div>
-                  {maxColumns > 1 && (
-                    <div className="text-xs text-muted-foreground">
-                      • {maxColumns} employee{maxColumns !== 1 ? 's' : ''} working simultaneously at peak times
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground">
-                  No employees scheduled for {dayName}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

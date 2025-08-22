@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar, Clock, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Clock, Users, User } from 'lucide-react';
 import type { CompanyFunctionView, EmployeeFunctionView, CompanyMember, DailySchedule } from '@/types/database';
 
 interface CompanyMonthlyScheduleViewProps {
@@ -16,14 +16,24 @@ interface CompanyMonthlyScheduleViewProps {
 }
 
 const DAYS_OF_WEEK = [
-  { value: 'monday', label: 'Monday', shortName: 'Mon', key: 'monday' },
-  { value: 'tuesday', label: 'Tuesday', shortName: 'Tue', key: 'tuesday' },
-  { value: 'wednesday', label: 'Wednesday', shortName: 'Wed', key: 'wednesday' },
-  { value: 'thursday', label: 'Thursday', shortName: 'Thu', key: 'thursday' },
-  { value: 'friday', label: 'Friday', shortName: 'Fri', key: 'friday' },
-  { value: 'saturday', label: 'Saturday', shortName: 'Sat', key: 'saturday' },
-  { value: 'sunday', label: 'Sunday', shortName: 'Sun', key: 'sunday' },
+  { value: 'monday', label: 'Monday', shortName: 'Ma', key: 'monday' },
+  { value: 'tuesday', label: 'Tuesday', shortName: 'Di', key: 'tuesday' },
+  { value: 'wednesday', label: 'Wednesday', shortName: 'Wo', key: 'wednesday' },
+  { value: 'thursday', label: 'Thursday', shortName: 'Do', key: 'thursday' },
+  { value: 'friday', label: 'Friday', shortName: 'Vr', key: 'friday' },
+  { value: 'saturday', label: 'Saturday', shortName: 'Za', key: 'saturday' },
+  { value: 'sunday', label: 'Sunday', shortName: 'Zo', key: 'sunday' },
 ];
+
+interface ScheduleSlot {
+  employeeName: string;
+  functionName: string;
+  functionColor: string;
+  startTime: string;
+  endTime: string;
+  email: string;
+  totalHours: number;
+}
 
 export function CompanyMonthlyScheduleView({ 
   currentMonth = new Date(),
@@ -65,6 +75,8 @@ export function CompanyMonthlyScheduleView({
         date: new Date(currentDate),
         isCurrentMonth: currentDate.getMonth() === month,
         dayKey: DAYS_OF_WEEK[currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1].key as keyof DailySchedule,
+        isToday: currentDate.toDateString() === new Date().toDateString(),
+        isWeekend: currentDate.getDay() === 0 || currentDate.getDay() === 6,
       });
       currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -104,6 +116,7 @@ export function CompanyMonthlyScheduleView({
       startTime: string;
       endTime: string;
       email: string;
+      totalHours: number;
     }> = [];
     
     employees.forEach(employee => {
@@ -117,6 +130,9 @@ export function CompanyMonthlyScheduleView({
       if (!daySchedule?.enabled || !daySchedule.start_time || !daySchedule.end_time) return;
       
       const functionData = companyFunctions.find(f => f.id === employee.function_id);
+      const startHour = parseInt(daySchedule.start_time.split(':')[0]);
+      const endHour = parseInt(daySchedule.end_time.split(':')[0]);
+      const totalHours = endHour - startHour;
       
       daySchedules.push({
         employeeName: `${employee.first_name} ${employee.last_name}`,
@@ -124,7 +140,8 @@ export function CompanyMonthlyScheduleView({
         functionColor: functionData?.color || '#6b7280',
         startTime: daySchedule.start_time.substring(0, 5),
         endTime: daySchedule.end_time.substring(0, 5),
-        email: employee.email
+        email: employee.email,
+        totalHours
       });
     });
     
@@ -177,71 +194,87 @@ export function CompanyMonthlyScheduleView({
           {DAYS_OF_WEEK.map((day) => (
             <div
               key={day.value}
-              className="p-2 text-center text-sm font-medium text-muted-foreground border-b"
+              className="p-3 text-center text-sm font-medium text-muted-foreground border-b border-border bg-muted/30 rounded-t-lg"
             >
-              {day.label}
+              {day.shortName}
             </div>
           ))}
           
           {/* Calendar days */}
           {calendarDays.map((day, index) => {
-            const isToday = day.date.toDateString() === new Date().toDateString();
             const daySchedules = day.isCurrentMonth ? getDayScheduleData(day.dayKey) : [];
             
             return (
               <div
                 key={index}
                 className={`
-                  min-h-[160px] p-2 border rounded-lg text-sm relative
+                  min-h-[140px] p-3 border rounded-lg text-sm relative transition-colors
                   ${day.isCurrentMonth 
-                    ? 'bg-background hover:bg-muted/50' 
-                    : 'bg-muted/30 text-muted-foreground'
+                    ? 'bg-background hover:bg-muted/30' 
+                    : 'bg-muted/20 text-muted-foreground'
                   }
-                  ${isToday ? 'ring-2 ring-primary' : ''}
+                  ${day.isToday ? 'ring-2 ring-primary bg-primary/5' : ''}
+                  ${day.isWeekend ? 'bg-muted/10' : ''}
                 `}
               >
                 {/* Date number */}
                 <div className={`
-                  text-right font-medium mb-2
-                  ${isToday ? 'text-primary font-bold' : ''}
+                  text-right font-medium mb-3 text-lg
+                  ${day.isToday ? 'text-primary font-bold' : ''}
+                  ${!day.isCurrentMonth ? 'text-muted-foreground/50' : ''}
                 `}>
                   {day.date.getDate()}
                 </div>
                 
                 {/* Schedule content for current month days */}
                 {day.isCurrentMonth && daySchedules.length > 0 ? (
-                  <div className="space-y-1">
-                    {daySchedules.map((schedule, scheduleIndex) => (
+                  <div className="space-y-2">
+                    {daySchedules.slice(0, 3).map((schedule, scheduleIndex) => (
                       <div
                         key={`${schedule.email}-${scheduleIndex}`}
-                        className="text-xs p-2 rounded border shadow-sm"
+                        className="text-xs p-2 rounded-lg border shadow-sm"
                         style={{ 
                           backgroundColor: `${schedule.functionColor}20`,
                           borderColor: schedule.functionColor 
                         }}
                       >
-                        <div className="font-medium text-xs truncate">
+                        <div className="font-medium text-xs truncate text-foreground">
                           {schedule.employeeName}
                         </div>
                         <div className="text-[10px] text-muted-foreground truncate">
                           {schedule.functionName}
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-1">
+                        <div className="text-[10px] text-muted-foreground mt-1 font-medium">
                           {schedule.startTime} - {schedule.endTime}
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Show more indicator if there are more schedules */}
+                    {daySchedules.length > 3 && (
+                      <div className="text-center">
+                        <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                          +{daySchedules.length - 3} more
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : day.isCurrentMonth ? (
-                  <div className="text-center py-8">
+                  <div className="text-center py-6">
                     <div className="text-muted-foreground mb-2">
-                      <Clock className="h-8 w-8 mx-auto opacity-50" />
+                      <Clock className="h-6 w-6 mx-auto opacity-50" />
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      No schedule data
+                      No schedule
                     </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="text-center py-6">
+                    <div className="text-xs text-muted-foreground/30">
+                      -
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -257,11 +290,15 @@ export function CompanyMonthlyScheduleView({
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-muted rounded-full"></div>
+              <span>Weekend</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-muted/20 rounded-full"></div>
               <span>Other month</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-3 w-3" />
-              <span>No schedule data</span>
+              <span>No schedule</span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-3 w-3" />
@@ -271,7 +308,7 @@ export function CompanyMonthlyScheduleView({
         </div>
         
         {/* Month Summary */}
-        {userRole === 'owner' || userRole === 'admin' ? (
+        {userRole === 'owner' && (
           <div className="mt-4 p-4 bg-muted/30 rounded-lg">
             <div className="text-center py-4">
               <h4 className="text-sm font-medium mb-2">Month Overview</h4>
@@ -283,15 +320,21 @@ export function CompanyMonthlyScheduleView({
                   • Color-coded by function type
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  • Click on days to see detailed schedules
+                  • Hover over calendar days for better interaction
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  • Today&apos;s date is highlighted
+                  • Today&apos;s date is highlighted with primary color
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  • Weekend days are subtly shaded
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  • Shows up to 3 schedules per day with "+more" indicator
                 </div>
               </div>
             </div>
           </div>
-        ) : null}
+        )}
       </CardContent>
     </Card>
   );

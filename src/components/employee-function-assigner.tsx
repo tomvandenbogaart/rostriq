@@ -10,9 +10,10 @@ import type { CompanyFunctionView, EmployeeFunctionView, CreateCompanyFunctionAs
 interface EmployeeFunctionAssignerProps {
   companyId: string
   currentUserId: string
+  userRole?: 'owner' | 'admin' | 'member'
 }
 
-export function EmployeeFunctionAssigner({ companyId, currentUserId }: EmployeeFunctionAssignerProps) {
+export function EmployeeFunctionAssigner({ companyId, currentUserId, userRole }: EmployeeFunctionAssignerProps) {
   const [functions, setFunctions] = useState<CompanyFunctionView[]>([])
   const [employees, setEmployees] = useState<EmployeeFunctionView[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -84,6 +85,20 @@ export function EmployeeFunctionAssigner({ companyId, currentUserId }: EmployeeF
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-muted-foreground">Loading employees and functions...</div>
+      </div>
+    )
+  }
+
+  // Only owners can assign employee functions
+  if (userRole !== 'owner') {
+    return (
+      <div className="text-center py-8">
+        <div className="text-muted-foreground mb-4">
+          Employee function assignment is restricted to company owners only.
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Contact your company owner to assign or modify employee functions.
+        </div>
       </div>
     )
   }

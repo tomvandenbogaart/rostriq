@@ -30,9 +30,10 @@ interface TeamMemberWithProfile extends CompanyMember {
 
 interface RosterDisplayProps {
   companyId: string
+  userRole?: 'owner' | 'admin' | 'member'
 }
 
-export function RosterDisplay({ companyId }: RosterDisplayProps) {
+export function RosterDisplay({ companyId, userRole }: RosterDisplayProps) {
   const [functions, setFunctions] = useState<CompanyFunctionView[]>([])
   const [employees, setEmployees] = useState<EmployeeFunctionView[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMemberWithProfile[]>([])
@@ -328,85 +329,92 @@ export function RosterDisplay({ companyId }: RosterDisplayProps) {
           </Button>
           <div className="w-px h-6 bg-border mx-2" />
           
-          {/* Function Filter Dropdown */}
-          <div className="relative function-filter-dropdown">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-              className="flex items-center gap-2"
-            >
-              Filter Functions
-              <ChevronDown className={`h-4 w-4 transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} />
-            </Button>
-            
-            {isFilterDropdownOpen && (
-              <div className="absolute top-full right-0 mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-50 p-3">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-medium">Functions</h4>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleAllFunctions(true)}
-                      className="text-xs h-6 px-2"
-                    >
-                      Select All
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleAllFunctions(false)}
-                      className="text-xs h-6 px-2"
-                    >
-                      Clear All
-                    </Button>
+          {/* Function Filter Dropdown - Only for owners */}
+          {userRole === 'owner' && (
+            <div className="relative function-filter-dropdown">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                className="flex items-center gap-2"
+              >
+                Filter Functions
+                <ChevronDown className={`h-4 w-4 transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} />
+              </Button>
+              
+              {isFilterDropdownOpen && (
+                <div className="absolute top-full right-0 mt-1 w-80 bg-background border border-border rounded-lg shadow-lg z-50 p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium">Functions</h4>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleAllFunctions(true)}
+                        className="text-xs h-6 px-2"
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleAllFunctions(false)}
+                        className="text-xs h-6 px-2"
+                      >
+                        Clear All
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {functions.map((func) => (
+                      <label key={func.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedFunctionIds.has(func.id)}
+                          onChange={(e) => handleFunctionFilterChange(func.id, e.target.checked)}
+                          className="rounded border-border"
+                        />
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-sm">{func.name}</span>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            ({func.assigned_employees_count})
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <div className="pt-2 border-t mt-3">
+                    <div className="text-xs text-muted-foreground">
+                      Showing {filteredFunctions.length} of {functions.length} functions
+                    </div>
                   </div>
                 </div>
-                
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {functions.map((func) => (
-                    <label key={func.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded">
-                      <input
-                        type="checkbox"
-                        checked={selectedFunctionIds.has(func.id)}
-                        onChange={(e) => handleFunctionFilterChange(func.id, e.target.checked)}
-                        className="rounded border-border"
-                      />
-                      <div className="flex items-center gap-2 flex-1">
-                        <span className="text-sm">{func.name}</span>
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          ({func.assigned_employees_count})
-                        </span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                
-                <div className="pt-2 border-t mt-3">
-                  <div className="text-xs text-muted-foreground">
-                    Showing {filteredFunctions.length} of {functions.length} functions
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           
-          <Button variant="outline" size="sm" title="Export Today's Schedule">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </Button>
-          <Button variant="outline" size="sm" title="Print Schedule">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-          </Button>
-          <Button variant="outline" size="sm" title="Share with Team">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367 2.684z" />
-            </svg>
-          </Button>
+          {/* Export/Print/Share buttons - Only for owners */}
+          {userRole === 'owner' && (
+            <>
+              <Button variant="outline" size="sm" title="Export Today's Schedule">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </Button>
+              <Button variant="outline" size="sm" title="Print Schedule">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+              </Button>
+              <Button variant="outline" size="sm" title="Share with Team">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367 2.684z" />
+                </svg>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

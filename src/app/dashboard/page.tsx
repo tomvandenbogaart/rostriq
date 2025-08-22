@@ -207,16 +207,14 @@ function DashboardContent() {
                 {viewMode === 'monthly' ? 'Monthly Schedule' : 
                  viewMode === 'weekly' ? 'Weekly Schedule' : 'Daily Schedule'}
               </h1>
-              {(userRole === 'owner' || userRole === 'admin') && (
-                <p className="text-muted-foreground">
-                  {viewMode === 'monthly' 
-                    ? 'Get a bird\'s eye view of your team\'s working schedules for the entire month'
-                    : viewMode === 'weekly'
-                    ? 'View your schedule for the entire week'
-                    : 'View and manage your team\'s daily schedule'
-                  }
-                </p>
-              )}
+              <p className="text-muted-foreground">
+                {viewMode === 'monthly' 
+                  ? 'Get a bird\'s eye view of your team\'s working schedules for the entire month'
+                  : viewMode === 'weekly'
+                  ? 'View your schedule for the entire week'
+                  : 'View and manage your team\'s daily schedule'
+                }
+              </p>
             </div>
             <div className="flex gap-3">
               <div className="flex gap-2">
@@ -242,6 +240,7 @@ function DashboardContent() {
                   Monthly
                 </Button>
               </div>
+              {/* Only show Create New Roster button for owners */}
               {userRole === 'owner' && (
                 <Button>
                   Create New Roster
@@ -287,7 +286,8 @@ function DashboardContent() {
                 {/* Company functions view */}
                 {!functionsLoading && companyFunctions.length > 0 && (
                   <>
-                    {(userRole === 'owner' || userRole === 'admin') && (
+                    {/* Only show management controls for owners */}
+                    {userRole === 'owner' && (
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
                           Showing {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''}

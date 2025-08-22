@@ -13,9 +13,10 @@ import { CompanyInvitation, Company } from '@/types/database';
 interface CompanyInvitationsManagerProps {
   companyId: string;
   company: Company;
+  userRole?: 'owner' | 'admin' | 'member';
 }
 
-export function CompanyInvitationsManager({ companyId, company }: CompanyInvitationsManagerProps) {
+export function CompanyInvitationsManager({ companyId, company, userRole }: CompanyInvitationsManagerProps) {
   const [invitations, setInvitations] = useState<CompanyInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -205,6 +206,28 @@ export function CompanyInvitationsManager({ companyId, company }: CompanyInvitat
       minute: '2-digit',
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-muted-foreground">Loading invitations...</div>
+      </div>
+    );
+  }
+
+  // Only owners can manage company invitations
+  if (userRole !== 'owner') {
+    return (
+      <div className="text-center py-8">
+        <div className="text-muted-foreground mb-4">
+          Company invitation management is restricted to company owners only.
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Contact your company owner to send or manage invitations.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

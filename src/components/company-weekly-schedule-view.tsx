@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, Clock, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Clock, Users, User } from 'lucide-react';
 import type { CompanyFunctionView, EmployeeFunctionView, CompanyMember, DailySchedule } from '@/types/database';
 
 interface CompanyWeeklyScheduleViewProps {
@@ -17,19 +17,14 @@ interface CompanyWeeklyScheduleViewProps {
 }
 
 const DAYS_OF_WEEK = [
-  { value: 'monday', label: 'Monday', shortName: 'Mon', key: 'monday' },
-  { value: 'tuesday', label: 'Tuesday', shortName: 'Tue', key: 'tuesday' },
-  { value: 'wednesday', label: 'Wednesday', shortName: 'Wed', key: 'wednesday' },
-  { value: 'thursday', label: 'Thursday', shortName: 'Thu', key: 'thursday' },
-  { value: 'friday', label: 'Friday', shortName: 'Fri', key: 'friday' },
-  { value: 'saturday', label: 'Saturday', shortName: 'Sat', key: 'saturday' },
-  { value: 'sunday', label: 'Sunday', shortName: 'Sun', key: 'sunday' },
+  { value: 'monday', label: 'Monday', shortName: 'Ma', key: 'monday' },
+  { value: 'tuesday', label: 'Tuesday', shortName: 'Di', key: 'tuesday' },
+  { value: 'wednesday', label: 'Wednesday', shortName: 'Wo', key: 'wednesday' },
+  { value: 'thursday', label: 'Thursday', shortName: 'Do', key: 'thursday' },
+  { value: 'friday', label: 'Friday', shortName: 'Vr', key: 'friday' },
+  { value: 'saturday', label: 'Saturday', shortName: 'Za', key: 'saturday' },
+  { value: 'sunday', label: 'Sunday', shortName: 'Zo', key: 'sunday' },
 ];
-
-const TIME_SLOTS = Array.from({ length: 17 }, (_, i) => {
-  const hour = i + 6;
-  return `${hour.toString().padStart(2, '0')}:00`;
-});
 
 interface TeamMemberWithProfile extends CompanyMember {
   user_profile: {
@@ -44,13 +39,10 @@ interface ScheduleSlot {
   employeeName: string;
   functionName: string;
   functionColor: string;
-  startHour: number;
-  endHour: number;
   startTime: string;
   endTime: string;
   email: string;
-  columnIndex: number;
-  totalColumns: number;
+  totalHours: number;
 }
 
 export function CompanyWeeklyScheduleView({ 
@@ -126,102 +118,63 @@ export function CompanyWeeklyScheduleView({
     }
   };
 
-  // Get schedule data for a specific day with proper stacking
-  const getDayScheduleData = (dayKey: keyof DailySchedule): ScheduleSlot[] => {
-    const daySchedules: Array<{
-      employeeName: string;
-      functionName: string;
-      functionColor: string;
-      startHour: number;
-      endHour: number;
-      startTime: string;
-      endTime: string;
-      email: string;
-    }> = [];
-    
-    employees.forEach(employee => {
-      const teamMember = teamMembers.find(member => 
-        member.user_profile.email === employee.email
-      );
-      
-      if (!teamMember || !teamMember.daily_schedule) return;
-      
-      const daySchedule = teamMember.daily_schedule[dayKey];
-      if (!daySchedule?.enabled || !daySchedule.start_time || !daySchedule.end_time) return;
-      
-      const startHour = parseInt(daySchedule.start_time.split(':')[0]);
-      const endHour = parseInt(daySchedule.end_time.split(':')[0]);
-      
-      const functionData = companyFunctions.find(f => f.id === employee.function_id);
-      
-      daySchedules.push({
-        employeeName: `${employee.first_name} ${employee.last_name}`,
-        functionName: functionData?.name || 'Unknown Function',
-        functionColor: functionData?.color || '#6b7280',
-        startHour,
-        endHour,
-        startTime: daySchedule.start_time.substring(0, 5),
-        endTime: daySchedule.end_time.substring(0, 5),
-        email: employee.email
-      });
-    });
-
-    // Sort schedules by start time
-    daySchedules.sort((a, b) => a.startHour - b.startHour);
-
-    // Calculate overlapping schedules and assign column positions
-    const scheduleSlots: ScheduleSlot[] = [];
-    
-    // For now, let's assign each schedule to a different column to test the layout
-    daySchedules.forEach((schedule, index) => {
-      scheduleSlots.push({
-        ...schedule,
-        columnIndex: index, // Each schedule gets its own column
-        totalColumns: daySchedules.length
-      });
-    });
-
-    // Update totalColumns for all schedules based on the maximum found
-    const maxColumns = daySchedules.length;
-
-    console.log('Processed schedule slots for', dayKey, ':', scheduleSlots);
-    console.log('Max columns needed for', dayKey, ':', maxColumns);
-    
-    return scheduleSlots;
-  };
-
-  // Check if a time slot should show a schedule card
-  const shouldShowScheduleCard = (dayKey: keyof DailySchedule, timeHour: number) => {
-    const daySchedules = getDayScheduleData(dayKey);
-    return daySchedules.some(schedule => 
-      timeHour >= schedule.startHour && timeHour < schedule.endHour
+  // Get schedule data for a specific employee and day
+  const getEmployeeDaySchedule = (employee: EmployeeFunctionView, dayKey: keyof DailySchedule): ScheduleSlot | null => {
+    const teamMember = teamMembers.find(member => 
+      member.user_profile.email === employee.email
     );
-  };
-
-  // Get the schedule card for a specific time slot (only show at start time)
-  const getScheduleCard = (dayKey: keyof DailySchedule, timeHour: number) => {
-    const daySchedules = getDayScheduleData(dayKey);
-    const schedule = daySchedules.find(s => timeHour === s.startHour);
     
-    if (!schedule) return null;
+    if (!teamMember || !teamMember.daily_schedule) return null;
     
-    const duration = schedule.endHour - schedule.startHour;
-    const rowSpan = Math.max(1, duration);
+    const daySchedule = teamMember.daily_schedule[dayKey];
+    if (!daySchedule?.enabled || !daySchedule.start_time || !daySchedule.end_time) return null;
+    
+    const functionData = companyFunctions.find(f => f.id === employee.function_id);
+    
+    // Calculate total hours for the week
+    let totalHours = 0;
+    Object.values(teamMember.daily_schedule).forEach(schedule => {
+      if (schedule?.enabled && schedule.start_time && schedule.end_time) {
+        const startHour = parseInt(schedule.start_time.split(':')[0]);
+        const endHour = parseInt(schedule.end_time.split(':')[0]);
+        totalHours += endHour - startHour;
+      }
+    });
     
     return {
-      ...schedule,
-      rowSpan
+      employeeName: `${employee.first_name} ${employee.last_name}`,
+      functionName: functionData?.name || 'Unknown Function',
+      functionColor: functionData?.color || '#6b7280',
+      startTime: daySchedule.start_time.substring(0, 5),
+      endTime: daySchedule.end_time.substring(0, 5),
+      email: employee.email,
+      totalHours
     };
   };
 
-  // Calculate maximum columns needed across all days
-  const maxColumnsPerDay = useMemo(() => {
-    const maxColumns = weekDays.map(day => {
-      const daySchedules = getDayScheduleData(day.dayKey);
-      return Math.max(...daySchedules.map(s => s.totalColumns), 1);
+  // Get all employees with their weekly schedules
+  const employeesWithSchedules = useMemo(() => {
+    return employees.map(employee => {
+      const weeklySchedule: Record<string, ScheduleSlot | null> = {};
+      let totalWeeklyHours = 0;
+      
+      weekDays.forEach(day => {
+        const daySchedule = getEmployeeDaySchedule(employee, day.dayKey);
+        weeklySchedule[day.dayKey] = daySchedule;
+        if (daySchedule) {
+          const startHour = parseInt(daySchedule.startTime.split(':')[0]);
+          const endHour = parseInt(daySchedule.endTime.split(':')[0]);
+          totalWeeklyHours += endHour - startHour;
+        }
+      });
+      
+      return {
+        ...employee,
+        weeklySchedule,
+        totalWeeklyHours
+      };
     });
-    return Math.max(...maxColumns, 1);
-  }, [weekDays]);
+  }, [employees, weekDays, teamMembers, companyFunctions]);
 
   return (
     <Card className="w-full">
@@ -261,140 +214,92 @@ export function CompanyWeeklyScheduleView({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Week Grid */}
+        {/* Schedule Grid */}
         <div className="border border-border rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             {/* Header Row - Day names */}
             <div className="flex border-b border-border">
-              <div className="w-20 flex-shrink-0 py-2 px-2 font-medium text-xs border-r border-border bg-muted/30">
-                Time
+              <div className="w-48 flex-shrink-0 py-3 px-4 font-medium text-sm border-r border-border bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>Team Members</span>
+                </div>
               </div>
               {weekDays.map((day) => (
                 <div
                   key={day.date.toISOString()}
                   className={`
-                    flex-1 py-2 px-2 font-medium text-xs border-r border-border bg-muted/30 text-center
+                    flex-1 py-3 px-2 font-medium text-sm border-r border-border bg-muted/30 text-center
                     ${day.isToday ? 'bg-primary/10 text-primary font-bold' : ''}
                     ${day.isWeekend ? 'bg-muted/20' : ''}
                   `}
                 >
                   <div className="font-medium">{day.shortName}</div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-xs text-muted-foreground">
                     {day.date.getDate()}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Grid Container */}
-            <div 
-              className="relative"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '80px repeat(7, 1fr)',
-                gridTemplateRows: `repeat(${TIME_SLOTS.length}, 32px)`,
-                position: 'relative'
-              }}
-            >
-              {/* Time Labels */}
-              {TIME_SLOTS.map((time, timeIndex) => (
-                <div
-                  key={`time-${time}`}
-                  className="py-1 px-2 border-r border-b border-border bg-muted/10 flex items-center"
-                  style={{ gridColumn: 1, gridRow: timeIndex + 1 }}
-                >
-                  <div className="font-medium text-xs">{time}</div>
-                </div>
-              ))}
-
-              {/* Background Grid Cells */}
-              {TIME_SLOTS.map((time, timeIndex) => 
-                weekDays.map((day, dayIndex) => {
-                  const timeHour = parseInt(time.split(':')[0]);
-                  const isInSchedule = shouldShowScheduleCard(day.dayKey, timeHour);
-                  
-                  return (
-                    <div
-                      key={`bg-${time}-${day.date.toISOString()}`}
-                      className={`
-                        border-r border-b border-border/30 min-h-[32px]
-                        ${day.isToday ? 'bg-primary/5' : ''}
-                        ${day.isWeekend ? 'bg-muted/10' : ''}
-                        ${isInSchedule ? '' : 'hover:bg-muted/20'}
-                      `}
-                      style={{ 
-                        gridColumn: dayIndex + 2, 
-                        gridRow: timeIndex + 1 
-                      }}
-                    />
-                  );
-                })
-              )}
-
-              {/* Schedule Cards */}
-              {weekDays.map((day, dayIndex) => {
-                const daySchedules = getDayScheduleData(day.dayKey);
-                const dayMaxColumns = Math.max(...daySchedules.map(s => s.totalColumns), 1);
-                
-                return daySchedules.map((schedule) => {
-                  const startRowIndex = TIME_SLOTS.findIndex(slot => 
-                    parseInt(slot.split(':')[0]) === schedule.startHour
-                  );
-                  const endRowIndex = TIME_SLOTS.findIndex(slot => 
-                    parseInt(slot.split(':')[0]) === schedule.endHour
-                  );
-                  
-                  if (startRowIndex === -1) return null;
-                  
-                  const duration = endRowIndex === -1 ? 
-                    TIME_SLOTS.length - startRowIndex : 
-                    endRowIndex - startRowIndex;
-                  
-                  // Calculate card width and position for side-by-side layout with spacing
-                  const gap = 4; // 4px gap between cards
-                  const sidePadding = 4; // 4px padding on left and right sides
-                  const totalGaps = dayMaxColumns - 1;
-                  const availableWidth = `calc(100% - ${totalGaps * gap}px - ${sidePadding * 2}px)`;
-                  const cardWidth = dayMaxColumns > 1 ? `calc(${availableWidth} / ${dayMaxColumns})` : '100%';
-                  const leftOffset = dayMaxColumns > 1 ? `calc(${sidePadding}px + ${schedule.columnIndex} * (${cardWidth} + ${gap}px))` : '0';
-                  
-                  return (
-                    <div
-                      key={`schedule-${schedule.email}-${day.date.toISOString()}`}
-                      className="p-1 z-10"
-                      style={{
-                        gridColumn: `${dayIndex + 2} / span 1`,
-                        gridRow: `${startRowIndex + 1} / span ${duration}`,
-                        position: 'relative'
-                      }}
-                    >
-                      <div 
-                        className="rounded border p-2 flex flex-col justify-center shadow-sm"
-                        style={{ 
-                          backgroundColor: `${schedule.functionColor}20`,
-                          borderColor: schedule.functionColor,
-                          position: 'absolute',
-                          left: leftOffset,
-                          width: cardWidth,
-                          top: '4px',
-                          height: `calc(${duration * 32}px - 8px)`
-                        }}
-                      >
-                        <div className="font-medium text-xs truncate">
-                          {schedule.employeeName}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground truncate">
-                          {schedule.functionName}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground mt-1">
-                          {schedule.startTime} - {schedule.endTime}
-                        </div>
+            {/* Employee Rows */}
+            {employeesWithSchedules.map((employee, employeeIndex) => (
+              <div key={employee.email} className="flex border-b border-border last:border-b-0">
+                {/* Employee Info Column */}
+                <div className="w-48 flex-shrink-0 py-3 px-4 border-r border-border bg-muted/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {employee.first_name} {employee.last_name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {employee.totalWeeklyHours} uur
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Schedule Columns for each day */}
+                {weekDays.map((day, dayIndex) => {
+                  const schedule = employee.weeklySchedule[day.dayKey];
+                  
+                  return (
+                    <div
+                      key={`${employee.email}-${day.date.toISOString()}`}
+                      className={`
+                        flex-1 py-3 px-2 border-r border-border min-h-[60px] flex items-center justify-center
+                        ${day.isToday ? 'bg-primary/5' : ''}
+                        ${day.isWeekend ? 'bg-muted/10' : ''}
+                      `}
+                    >
+                      {schedule ? (
+                        <div 
+                          className="w-full max-w-[120px] rounded-lg border p-2 text-center shadow-sm"
+                          style={{ 
+                            backgroundColor: `${schedule.functionColor}20`,
+                            borderColor: schedule.functionColor,
+                          }}
+                        >
+                          <div className="text-xs font-medium text-foreground">
+                            {schedule.startTime} - {schedule.endTime}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-1 truncate">
+                            {schedule.functionName}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          -
+                        </div>
+                      )}
+                    </div>
                   );
-                });
-              })}
-            </div>
+                })}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -412,7 +317,7 @@ export function CompanyWeeklyScheduleView({
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-3 w-3" />
-              <span>No schedule data</span>
+              <span>No schedule</span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-3 w-3" />
@@ -422,7 +327,7 @@ export function CompanyWeeklyScheduleView({
         </div>
 
         {/* Week Summary */}
-        {userRole === 'owner' || userRole === 'admin' ? (
+        {userRole === 'owner' && (
           <div className="mt-4 p-4 bg-muted/30 rounded-lg">
             <div className="text-center py-4">
               <h4 className="text-sm font-medium mb-2">Week Overview</h4>
@@ -434,20 +339,18 @@ export function CompanyWeeklyScheduleView({
                   • Color-coded by function type
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  • Hover over time slots to see details
+                  • Total hours shown per employee
                 </div>
                 <div className="text-xs text-muted-foreground">
                   • Today&apos;s column is highlighted
                 </div>
-                {maxColumnsPerDay > 1 && (
-                  <div className="text-xs text-muted-foreground">
-                    • Up to {maxColumnsPerDay} employee{maxColumnsPerDay !== 1 ? 's' : ''} working simultaneously at peak times
-                  </div>
-                )}
+                <div className="text-xs text-muted-foreground">
+                  • Weekend columns are shaded
+                </div>
               </div>
             </div>
           </div>
-        ) : null}
+        )}
       </CardContent>
     </Card>
   );

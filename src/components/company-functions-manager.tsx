@@ -11,9 +11,10 @@ import type { CompanyFunctionView, CreateCompanyFunction } from '@/types/databas
 interface CompanyFunctionsManagerProps {
   companyId: string
   currentUserId: string
+  userRole?: 'owner' | 'admin' | 'member'
 }
 
-export function CompanyFunctionsManager({ companyId, currentUserId }: CompanyFunctionsManagerProps) {
+export function CompanyFunctionsManager({ companyId, currentUserId, userRole }: CompanyFunctionsManagerProps) {
   const [functions, setFunctions] = useState<CompanyFunctionView[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
@@ -90,6 +91,20 @@ export function CompanyFunctionsManager({ companyId, currentUserId }: CompanyFun
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-muted-foreground">Loading functions...</div>
+      </div>
+    )
+  }
+
+  // Only owners can manage company functions
+  if (userRole !== 'owner') {
+    return (
+      <div className="text-center py-8">
+        <div className="text-muted-foreground mb-4">
+          Company function management is restricted to company owners only.
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Contact your company owner to create or modify company functions.
+        </div>
       </div>
     )
   }
