@@ -11,7 +11,8 @@ interface CompanyDailyScheduleViewProps {
   onDateChange?: (date: Date) => void;
   companyFunctions: CompanyFunctionView[];
   employees: EmployeeFunctionView[];
-  teamMembers: CompanyMember[];
+  teamMembers: (CompanyMember & { user_profile: { email: string; first_name?: string; last_name?: string; avatar_url?: string } })[];
+  userRole?: 'owner' | 'admin' | 'member';
 }
 
 const TIME_SLOTS = Array.from({ length: 17 }, (_, i) => {
@@ -24,7 +25,8 @@ export function CompanyDailyScheduleView({
   onDateChange,
   companyFunctions,
   employees,
-  teamMembers
+  teamMembers,
+  userRole
 }: CompanyDailyScheduleViewProps) {
   const [selectedDate, setSelectedDate] = useState(currentDate);
 
@@ -124,10 +126,9 @@ export function CompanyDailyScheduleView({
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
             <div>
-              <CardTitle>Daily Schedule</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg font-bold">
                 {dayName}, {dateString}
-              </CardDescription>
+              </CardTitle>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -264,28 +265,30 @@ export function CompanyDailyScheduleView({
         </div>
 
         {/* Summary */}
-        <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-          <div className="text-center py-2">
-            <h4 className="text-sm font-medium mb-2">Day Overview</h4>
-            <p className="text-xs text-muted-foreground mb-4">
-              Showing schedule for {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''} and {employees.length} employee{employees.length !== 1 ? 's' : ''}
-            </p>
-            {daySchedules.length > 0 ? (
-              <div className="space-y-2">
-                <div className="text-xs text-muted-foreground">
-                  • {daySchedules.length} employee{daySchedules.length !== 1 ? 's' : ''} working today
+        {userRole === 'owner' || userRole === 'admin' ? (
+          <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+            <div className="text-center py-2">
+              <h4 className="text-sm font-medium mb-2">Day Overview</h4>
+              <p className="text-xs text-muted-foreground mb-4">
+                Showing schedule for {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''} and {employees.length} employee{employees.length !== 1 ? 's' : ''}
+              </p>
+              {daySchedules.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">
+                    • {daySchedules.length} employee{daySchedules.length !== 1 ? 's' : ''} working today
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    • Color-coded by function type
+                  </div>
                 </div>
+              ) : (
                 <div className="text-xs text-muted-foreground">
-                  • Color-coded by function type
+                  No employees scheduled for {dayName}
                 </div>
-              </div>
-            ) : (
-              <div className="text-xs text-muted-foreground">
-                No employees scheduled for {dayName}
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        ) : null}
       </CardContent>
     </Card>
   );

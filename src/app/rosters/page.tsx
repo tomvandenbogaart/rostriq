@@ -31,11 +31,11 @@ function RostersContent() {
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userCompany, setUserCompany] = useState<Company | null>(null)
-  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily')
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('weekly')
   const [companyFunctions, setCompanyFunctions] = useState<CompanyFunctionView[]>([])
   const [functionsLoading, setFunctionsLoading] = useState(false)
   const [employees, setEmployees] = useState<EmployeeFunctionView[]>([])
-  const [teamMembers, setTeamMembers] = useState<CompanyMember[]>([])
+  const [teamMembers, setTeamMembers] = useState<(CompanyMember & { user_profile: { email: string; first_name?: string; last_name?: string; avatar_url?: string } })[]>([])
   const router = useRouter()
 
   // Fetch company functions for the company
@@ -161,14 +161,16 @@ function RostersContent() {
                 {viewMode === 'monthly' ? 'Monthly Schedule' : 
                  viewMode === 'weekly' ? 'Weekly Schedule' : 'Daily Schedule'}
               </h1>
-              <p className="text-muted-foreground">
-                {viewMode === 'monthly' 
-                  ? 'Get a bird\'s eye view of your team\'s working schedules for the entire month'
-                  : viewMode === 'weekly'
-                  ? 'View your schedule for the entire week'
-                  : 'View and manage your team\'s daily schedule'
-                }
-              </p>
+              {(userRole === 'owner' || userRole === 'admin') && (
+                <p className="text-muted-foreground">
+                  {viewMode === 'monthly' 
+                    ? 'Get a bird\'s eye view of your team\'s working schedules for the entire month'
+                    : viewMode === 'weekly'
+                    ? 'View your schedule for the entire week'
+                    : 'View and manage your team\'s daily schedule'
+                  }
+                </p>
+              )}
             </div>
             <div className="flex gap-3">
               <div className="flex gap-2">
@@ -239,24 +241,27 @@ function RostersContent() {
                 {/* Company functions view */}
                 {!functionsLoading && companyFunctions.length > 0 && (
                   <>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        Showing {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''}
+                    {(userRole === 'owner' || userRole === 'admin') && (
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-muted-foreground">
+                          Showing {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => fetchCompanyFunctions(userCompany.id)}
+                        >
+                          Refresh
+                        </Button>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => fetchCompanyFunctions(userCompany.id)}
-                      >
-                        Refresh
-                      </Button>
-                    </div>
+                    )}
                     <CompanyMonthlyScheduleView 
                       currentMonth={new Date()}
                       onMonthChange={() => {}}
                       companyFunctions={companyFunctions}
                       employees={employees}
                       teamMembers={teamMembers}
+                      userRole={userRole as 'owner' | 'admin' | 'member'}
                     />
                   </>
                 )}
@@ -268,6 +273,7 @@ function RostersContent() {
                 companyFunctions={companyFunctions}
                 employees={employees}
                 teamMembers={teamMembers}
+                userRole={userRole as 'owner' | 'admin' | 'member'}
               />
             ) : (
               <CompanyDailyScheduleView 
@@ -276,6 +282,7 @@ function RostersContent() {
                 companyFunctions={companyFunctions}
                 employees={employees}
                 teamMembers={teamMembers}
+                userRole={userRole as 'owner' | 'admin' | 'member'}
               />
             )
           ) : (

@@ -11,7 +11,8 @@ interface CompanyMonthlyScheduleViewProps {
   onMonthChange?: (date: Date) => void;
   companyFunctions: CompanyFunctionView[];
   employees: EmployeeFunctionView[];
-  teamMembers: CompanyMember[];
+  teamMembers: (CompanyMember & { user_profile: { email: string; first_name?: string; last_name?: string; avatar_url?: string } })[];
+  userRole?: 'owner' | 'admin' | 'member';
 }
 
 const DAYS_OF_WEEK = [
@@ -29,7 +30,8 @@ export function CompanyMonthlyScheduleView({
   onMonthChange,
   companyFunctions,
   employees,
-  teamMembers
+  teamMembers,
+  userRole
 }: CompanyMonthlyScheduleViewProps) {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
 
@@ -138,10 +140,9 @@ export function CompanyMonthlyScheduleView({
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
             <div>
-              <CardTitle>Monthly Schedule</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg font-bold">
                 {monthName}
-              </CardDescription>
+              </CardTitle>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -270,25 +271,27 @@ export function CompanyMonthlyScheduleView({
         </div>
         
         {/* Month Summary */}
-        <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-          <div className="text-center py-4">
-            <h4 className="text-sm font-medium mb-2">Month Overview</h4>
-            <p className="text-xs text-muted-foreground mb-4">
-              Showing schedule for {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''} and {employees.length} employee{employees.length !== 1 ? 's' : ''}
-            </p>
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">
-                • Color-coded by function type
-              </div>
-              <div className="text-xs text-muted-foreground">
-                • Click on days to see detailed schedules
-              </div>
-              <div className="text-xs text-muted-foreground">
-                • Today's date is highlighted
+        {userRole === 'owner' || userRole === 'admin' ? (
+          <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+            <div className="text-center py-4">
+              <h4 className="text-sm font-medium mb-2">Month Overview</h4>
+              <p className="text-xs text-muted-foreground mb-4">
+                Showing schedule for {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''} and {employees.length} employee{employees.length !== 1 ? 's' : ''}
+              </p>
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground">
+                  • Color-coded by function type
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  • Click on days to see detailed schedules
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  • Today&apos;s date is highlighted
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </CardContent>
     </Card>
   );
