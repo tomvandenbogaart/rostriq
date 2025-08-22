@@ -240,12 +240,7 @@ function DashboardContent() {
                   Monthly
                 </Button>
               </div>
-              {/* Only show Create New Roster button for owners */}
-              {userRole === 'owner' && (
-                <Button>
-                  Create New Roster
-                </Button>
-              )}
+
             </div>
           </div>
 
@@ -285,31 +280,14 @@ function DashboardContent() {
                 
                 {/* Company functions view */}
                 {!functionsLoading && companyFunctions.length > 0 && (
-                  <>
-                    {/* Only show management controls for owners */}
-                    {userRole === 'owner' && (
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-muted-foreground">
-                          Showing {companyFunctions.length} company function{companyFunctions.length !== 1 ? 's' : ''}
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => fetchCompanyFunctions(userCompany.id)}
-                        >
-                          Refresh
-                        </Button>
-                      </div>
-                    )}
-                    <CompanyMonthlyScheduleView 
-                      currentMonth={new Date()}
-                      onMonthChange={() => {}}
-                      companyFunctions={companyFunctions}
-                      employees={employees}
-                      teamMembers={teamMembers}
-                      userRole={userRole as 'owner' | 'admin' | 'member'}
-                    />
-                  </>
+                  <CompanyMonthlyScheduleView 
+                    currentMonth={new Date()}
+                    onMonthChange={() => {}}
+                    companyFunctions={companyFunctions}
+                    employees={employees}
+                    teamMembers={teamMembers}
+                    userRole={userRole as 'owner' | 'admin' | 'member'}
+                  />
                 )}
               </div>
             ) : viewMode === 'weekly' ? (

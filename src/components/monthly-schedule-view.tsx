@@ -148,6 +148,13 @@ export function MonthlyScheduleView({
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
+            <div className="w-64">
+              <input
+                type="text"
+                placeholder="Search employees..."
+                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              />
+            </div>
           </div>
         </div>
       </CardHeader>

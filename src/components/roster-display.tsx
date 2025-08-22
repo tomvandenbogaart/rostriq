@@ -43,10 +43,18 @@ export function RosterDisplay({ companyId, userRole }: RosterDisplayProps) {
   const [filteredFunctions, setFilteredFunctions] = useState<CompanyFunctionView[]>([])
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false)
   const [selectedFunctionIds, setSelectedFunctionIds] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     loadData()
   }, [companyId])
+
+  // Regenerate shifts when search query changes
+  useEffect(() => {
+    if (!isLoading) {
+      generateShiftsFromWorkingSchedules(functions, employees, teamMembers)
+    }
+  }, [searchQuery, functions, employees, teamMembers, selectedDate])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -109,9 +117,26 @@ export function RosterDisplay({ companyId, userRole }: RosterDisplayProps) {
         isWorkingToday: false,
       })
     } else {
-      // Generate shifts for each function - show ALL functions regardless of employee assignment
-      functionsData.forEach((func) => {
-        const employeesInFunction = employeesData.filter(emp => emp.function_id === func.id)
+      // Filter functions and employees based on search query
+      let filteredFunctions = functionsData;
+      let filteredEmployees = employeesData;
+      
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        filteredFunctions = functionsData.filter(func => 
+          func.name.toLowerCase().includes(query)
+        );
+        filteredEmployees = employeesData.filter(employee => 
+          employee.first_name?.toLowerCase().includes(query) ||
+          employee.last_name?.toLowerCase().includes(query) ||
+          employee.email.toLowerCase().includes(query) ||
+          functionsData.find(f => f.id === employee.function_id)?.name.toLowerCase().includes(query)
+        );
+      }
+      
+      // Generate shifts for each filtered function
+      filteredFunctions.forEach((func) => {
+        const employeesInFunction = filteredEmployees.filter(emp => emp.function_id === func.id)
         
         if (employeesInFunction.length > 0) {
           // Create shifts for employees in this function
@@ -327,6 +352,15 @@ export function RosterDisplay({ companyId, userRole }: RosterDisplayProps) {
           <Button variant="outline" size="sm" onClick={goToNextDay}>
             Next Day →
           </Button>
+          <div className="w-64">
+            <input
+              type="text"
+              placeholder="Search employees..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+            />
+          </div>
           <div className="w-px h-6 bg-border mx-2" />
           
           {/* Function Filter Dropdown - Only for owners */}

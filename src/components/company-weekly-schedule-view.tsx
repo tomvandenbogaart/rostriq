@@ -54,6 +54,7 @@ export function CompanyWeeklyScheduleView({
   userRole
 }: CompanyWeeklyScheduleViewProps) {
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get the start of the week (Monday)
   const weekStart = useMemo(() => {
@@ -154,7 +155,20 @@ export function CompanyWeeklyScheduleView({
 
   // Get all employees with their weekly schedules
   const employeesWithSchedules = useMemo(() => {
-    return employees.map(employee => {
+    let filteredEmployees = employees;
+    
+    // Filter employees based on search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filteredEmployees = employees.filter(employee => 
+        employee.first_name?.toLowerCase().includes(query) ||
+        employee.last_name?.toLowerCase().includes(query) ||
+        employee.email.toLowerCase().includes(query) ||
+        companyFunctions.find(f => f.id === employee.function_id)?.name.toLowerCase().includes(query)
+      );
+    }
+    
+    return filteredEmployees.map(employee => {
       const weeklySchedule: Record<string, ScheduleSlot | null> = {};
       let totalWeeklyHours = 0;
       
@@ -174,7 +188,7 @@ export function CompanyWeeklyScheduleView({
         totalWeeklyHours
       };
     });
-  }, [employees, weekDays, teamMembers, companyFunctions]);
+  }, [employees, weekDays, teamMembers, companyFunctions, searchQuery]);
 
   return (
     <Card className="w-full">
@@ -209,6 +223,25 @@ export function CompanyWeeklyScheduleView({
               onClick={goToNextWeek}
             >
               <ChevronRight className="h-4 w-4" />
+            </Button>
+            <div className="w-64">
+              <input
+                type="text"
+                placeholder="Search employees..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              />
+            </div>
+            <Button variant="outline" size="sm" title="Print Schedule">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+            </Button>
+            <Button variant="outline" size="sm" title="Share with Team">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+              </svg>
             </Button>
           </div>
         </div>

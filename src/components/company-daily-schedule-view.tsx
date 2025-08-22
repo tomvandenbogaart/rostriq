@@ -41,6 +41,7 @@ export function CompanyDailyScheduleView({
   userRole
 }: CompanyDailyScheduleViewProps) {
   const [selectedDate, setSelectedDate] = useState(currentDate);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get the day key for the selected date
   const dayKey = useMemo(() => {
@@ -105,7 +106,20 @@ export function CompanyDailyScheduleView({
 
   // Get all employees with their daily schedules
   const employeesWithSchedules = useMemo(() => {
-    return employees.map(employee => {
+    let filteredEmployees = employees;
+    
+    // Filter employees based on search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filteredEmployees = employees.filter(employee => 
+        employee.first_name?.toLowerCase().includes(query) ||
+        employee.last_name?.toLowerCase().includes(query) ||
+        employee.email.toLowerCase().includes(query) ||
+        companyFunctions.find(f => f.id === employee.function_id)?.name.toLowerCase().includes(query)
+      );
+    }
+    
+    return filteredEmployees.map(employee => {
       const daySchedule = getEmployeeDaySchedule(employee);
       
       return {
@@ -114,7 +128,7 @@ export function CompanyDailyScheduleView({
         totalDailyHours: daySchedule?.totalHours || 0
       };
     });
-  }, [employees, dayKey, teamMembers, companyFunctions]);
+  }, [employees, dayKey, teamMembers, companyFunctions, searchQuery]);
 
   const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
   const dateString = selectedDate.toLocaleDateString('en-US', { 
@@ -157,6 +171,15 @@ export function CompanyDailyScheduleView({
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
+            <div className="w-64">
+              <input
+                type="text"
+                placeholder="Search employees..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              />
+            </div>
             <Button variant="outline" size="sm" title="Print Schedule">
               <Printer className="w-4 h-4" />
             </Button>
